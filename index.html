@@ -185,6 +185,8 @@
     position: relative;
   }
   .board { width: 100%; height: 100%; display: block; overflow: visible; }
+  /* o cursor amarelo já mostra onde está o foco; sem isso o Safari desenha um contorno azul a cada toque */
+  .board:focus, .board:focus-visible { outline: none; }
 
   .toast {
     grid-area: toast;
