@@ -2,46 +2,51 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Arrows Puzzle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bungee&display=swap">
 <style>
+  /* Layout: coluna única centrada; o tabuleiro é uma placa de sinalização com setas. */
   :root {
-    --bg: #f4f1ea;
-    --surface: #fffdf8;
-    --cell: #ebe6db;
-    --text: #2b2a27;
-    --muted: #7a766c;
-    --arrow: #2f5d8a;
-    --danger: #c0392b;
-    --success: #2e8b57;
-    --hint: #e0a100;
-    --shadow: 0 2px 10px rgba(0,0,0,.08);
+    --bg: #e6ecf0;
+    --surface: #f7f9fa;
+    --cell: #d8e1e7;
+    --text: #18232c;
+    --muted: #5d6d79;
+    --arrow: #1d3b53;
+    --danger: #c8412f;
+    --hint: #d98f00;
+    --shadow: 0 2px 12px rgba(24,35,44,.10);
+    --font-display: "Bungee", "Arial Black", Impact, sans-serif;
+    --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #1b1c1f;
-      --surface: #25272b;
-      --cell: #2f3237;
-      --text: #ecebe7;
-      --muted: #9a978f;
-      --arrow: #7fb3e6;
-      --danger: #ff6b5b;
-      --success: #5cc98a;
-      --hint: #ffc53d;
-      --shadow: 0 2px 10px rgba(0,0,0,.4);
+      --bg: #10171d;
+      --surface: #19232b;
+      --cell: #233039;
+      --text: #e4ebf0;
+      --muted: #8a9ba7;
+      --arrow: #9cc8ec;
+      --danger: #ff7a66;
+      --hint: #ffbf3f;
+      --shadow: 0 2px 12px rgba(0,0,0,.45);
+      color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #1b1c1f;
-    --surface: #25272b;
-    --cell: #2f3237;
-    --text: #ecebe7;
-    --muted: #9a978f;
-    --arrow: #7fb3e6;
-    --danger: #ff6b5b;
-    --success: #5cc98a;
-    --hint: #ffc53d;
-    --shadow: 0 2px 10px rgba(0,0,0,.4);
+    --bg: #10171d;
+    --surface: #19232b;
+    --cell: #233039;
+    --text: #e4ebf0;
+    --muted: #8a9ba7;
+    --arrow: #9cc8ec;
+    --danger: #ff7a66;
+    --hint: #ffbf3f;
+    --shadow: 0 2px 12px rgba(0,0,0,.45);
+    color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
@@ -49,15 +54,19 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    min-height: 100vh;
+    font-family: var(--font-body);
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 16px;
+    padding-block: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
     -webkit-tap-highlight-color: transparent;
   }
-  h1 { font-size: 1.6rem; margin: 4px 0 12px; letter-spacing: .02em; }
+  h1 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 4px 0 12px; letter-spacing: .04em; }
+  .hud .value { font-variant-numeric: tabular-nums; }
+  button:focus-visible { outline: 3px solid var(--hint); outline-offset: 2px; }
   .hud {
     width: 100%;
     max-width: 480px;
@@ -167,8 +176,11 @@
     padding: 20px;
   }
   .overlay.show { display: flex; }
-  .overlay h2 { margin: 0; font-size: 1.5rem; }
+  .overlay h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; color: var(--arrow); }
   .overlay p { margin: 0 0 6px; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) {
+    .arrow, .arrow.shake, .arrow.hint, .cell.blocker { transition: none; animation: none; }
+  }
 </style>
 </head>
 <body>
