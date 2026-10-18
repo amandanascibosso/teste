@@ -10,13 +10,13 @@ Cada fase tem 2 dicas, que destacam uma seta que já pode sair.
 
 ## Como a dificuldade sobe
 
-As fases são geradas automaticamente, de trás para frente: cada seta é colocada num lugar de onde
-conseguiria sair naquele momento. Assim, tirar as setas na ordem inversa sempre resolve a fase, ou seja,
-toda fase tem solução.
+As fases são geradas automaticamente e o tabuleiro fica sempre cheio, sem casas vazias. Primeiro o
+tabuleiro inteiro é dividido em caminhos (o corpo das setas). Depois o gerador escolhe para que lado cada
+seta aponta, tirando uma por vez só quando o caminho à frente da ponta já está vazio. Assim, toda fase
+tem solução.
 
 A cada fase:
 - o tabuleiro cresce (de 5x5 até 10x10);
-- mais casas ficam ocupadas;
 - as setas ficam mais compridas e com mais curvas;
-- o gerador prefere colocar setas no caminho de outras, o que cria cadeias longas de dependência
+- o gerador prefere as escolhas que criam cadeias longas de dependência
   (A só sai depois de B, que só sai depois de C...).

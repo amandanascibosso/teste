@@ -222,11 +222,9 @@
   function levelParams(level) {
     return {
       size: Math.min(5 + Math.floor((level - 1) / 3), 10),
-      // fração das casas ocupadas por setas
-      density: Math.min(0.6 + level * 0.02, 0.9),
       // comprimento máximo de uma seta, em casas
       maxLen: Math.min(3 + Math.floor(level / 2), 9),
-      // chance de escolher a seta que mais bloqueia outras (cria cadeias longas)
+      // chance de preferir as escolhas que criam cadeias de dependência mais longas
       greed: Math.min(0.15 + level * 0.07, 0.95),
     };
   }
@@ -262,85 +260,148 @@
     return arr;
   }
 
-  // Tenta criar uma seta: escolhe a ponta e a direção com caminho livre e
-  // cresce o corpo para trás, em casas vazias, como uma cobrinha.
-  function tryArrow(grid, size, rng, maxLen) {
-    const empties = [];
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!grid[y][x]) empties.push([x, y]);
-    if (empties.length < 2) return null;
-    const [hx, hy] = empties[Math.floor(rng() * empties.length)];
+  // Divide o tabuleiro inteiro em caminhos (o corpo das setas), sem sobrar casa vazia.
+  function partition(size, rng, maxLen) {
+    const inside = (x, y) => x >= 0 && y >= 0 && x < size && y < size;
+    const owner = Array.from({ length: size }, () => Array(size).fill(-1));
+    const freeNeighbors = (x, y) => DIR_KEYS.map(k => DIRS[k])
+      .filter(d => inside(x + d.dx, y + d.dy) && owner[y + d.dy][x + d.dx] === -1);
+    const paths = [];
 
-    for (const dir of shuffle([...DIR_KEYS], rng)) {
-      const ray = rayCells(hx, hy, dir, size);
-      if (ray.some(([cx, cy]) => grid[cy][cx])) continue;
-      const { dx, dy } = DIRS[dir];
-      const bx = hx - dx, by = hy - dy;
-      if (bx < 0 || by < 0 || bx >= size || by >= size || grid[by][bx]) continue;
-
-      const banned = new Set(ray.map(([x, y]) => y * size + x));
-      const used = new Set([hy * size + hx, by * size + bx]);
-      const body = [[hx, hy], [bx, by]];
+    const cells = [];
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) cells.push([x, y]);
+    for (const [sx, sy] of shuffle(cells, rng)) {
+      if (owner[sy][sx] !== -1) continue;
+      const id = paths.length;
+      const path = [[sx, sy]];
+      owner[sy][sx] = id;
       // setas curtas são mais comuns; as longas aparecem de vez em quando
       const len = 2 + Math.floor(rng() ** 2 * (maxLen - 1));
-      let back = { dx: -dx, dy: -dy };
-      while (body.length < len) {
-        const [cx, cy] = body[body.length - 1];
-        const options = DIR_KEYS.map(k => DIRS[k]).filter(d => {
-          const nx = cx + d.dx, ny = cy + d.dy;
-          const key = ny * size + nx;
-          return nx >= 0 && ny >= 0 && nx < size && ny < size && !grid[ny][nx] && !used.has(key) && !banned.has(key);
-        });
+      let last = null;
+      while (path.length < len) {
+        const [cx, cy] = path[path.length - 1];
+        const options = freeNeighbors(cx, cy);
         if (!options.length) break;
-        const straight = options.find(d => d.dx === back.dx && d.dy === back.dy);
-        const step = straight && rng() < 0.55 ? straight : options[Math.floor(rng() * options.length)];
+        let step = last && rng() < 0.5 ? options.find(d => d === last) : null;
+        if (!step) {
+          // prefere a casa com menos vizinhas livres, para não deixar casas isoladas
+          const deg = d => freeNeighbors(cx + d.dx, cy + d.dy).length;
+          const min = Math.min(...options.map(deg));
+          const best = options.filter(d => deg(d) === min);
+          step = best[Math.floor(rng() * best.length)];
+        }
         const nx = cx + step.dx, ny = cy + step.dy;
-        body.push([nx, ny]);
-        used.add(ny * size + nx);
-        back = step;
+        path.push([nx, ny]);
+        owner[ny][nx] = id;
+        last = step;
       }
-      return { cells: body.reverse(), dir };
+      paths.push(path);
+    }
+
+    // Casas que ficaram sozinhas são juntadas a um caminho vizinho. Se a vizinha
+    // estiver no meio de um caminho, ele é cortado ali e a casa entra na ponta.
+    for (let guard = 0; guard < 400; guard++) {
+      const si = paths.findIndex(p => p.length === 1);
+      if (si === -1) return paths;
+      const [sx, sy] = paths[si][0];
+      const nbrs = shuffle(DIR_KEYS.map(k => [sx + DIRS[k].dx, sy + DIRS[k].dy]).filter(([x, y]) => inside(x, y)), rng);
+      const pathOf = ([x, y]) => paths.findIndex(p => p.some(([px, py]) => px === x && py === y));
+      let done = false;
+      for (const n of nbrs) {
+        const p = paths[pathOf(n)];
+        if (p[0][0] === n[0] && p[0][1] === n[1]) { p.unshift([sx, sy]); done = true; break; }
+        const e = p[p.length - 1];
+        if (e[0] === n[0] && e[1] === n[1]) { p.push([sx, sy]); done = true; break; }
+      }
+      if (!done) {
+        const n = nbrs[0];
+        const pi = pathOf(n);
+        const p = paths[pi];
+        const i = p.findIndex(([x, y]) => x === n[0] && y === n[1]);
+        paths[pi] = [...p.slice(0, i + 1), [sx, sy]];
+        paths.push(p.slice(i + 1));
+      }
+      paths.splice(si, 1);
     }
     return null;
   }
 
-  // Monta o tabuleiro de trás para frente: cada seta nova tem o caminho livre em
-  // relação às que já estão lá, então removê-las na ordem inversa sempre funciona
-  // e toda fase tem solução. Preferir setas cujo corpo fica no caminho de outras
-  // cria dependências (A só sai depois de B, que só sai depois de C...).
+  // Escolhe para que lado cada caminho aponta, tirando setas uma a uma: só sai uma
+  // seta cujo caminho à frente da ponta já esteja vazio. Se todas saem, a fase tem
+  // solução. Para dificultar, prefere a ponta que só ficou livre por último.
+  function orient(paths, size, rng, greed) {
+    const occ = Array.from({ length: size }, () => Array(size).fill(-1));
+    paths.forEach((p, i) => p.forEach(([x, y]) => { occ[y][x] = i; }));
+    const options = p => [p, [...p].reverse()].map(cells => {
+      const [hx, hy] = cells[cells.length - 1];
+      const [px, py] = cells[cells.length - 2];
+      const dir = DIR_KEYS.find(k => DIRS[k].dx === hx - px && DIRS[k].dy === hy - py);
+      return { cells, dir };
+    });
+    const firstFree = new Map(); // "caminho:lado" -> passo em que ficou livre
+    const left = new Set(paths.keys());
+    const arrows = [];
+    for (let step = 0; left.size; step++) {
+      const ready = [];
+      for (const i of left) {
+        options(paths[i]).forEach((o, side) => {
+          const [hx, hy] = o.cells[o.cells.length - 1];
+          if (rayCells(hx, hy, o.dir, size).every(([x, y]) => occ[y][x] === -1)) {
+            const key = `${i}:${side}`;
+            if (!firstFree.has(key)) firstFree.set(key, step);
+            ready.push({ i, o, at: firstFree.get(key) });
+          }
+        });
+      }
+      if (!ready.length) return null;
+      let pick;
+      if (rng() < greed) {
+        const latest = Math.max(...ready.map(r => r.at));
+        const pool = ready.filter(r => r.at === latest);
+        pick = pool[Math.floor(rng() * pool.length)];
+      } else {
+        pick = ready[Math.floor(rng() * ready.length)];
+      }
+      left.delete(pick.i);
+      for (const [x, y] of pick.o.cells) occ[y][x] = -1;
+      arrows.push(pick.o);
+    }
+    return arrows;
+  }
+
+  // Número de "rodadas" para resolver tirando todas as setas livres de uma vez:
+  // mede o tamanho da maior cadeia de dependência.
+  function chainDepth(grid, arrows) {
+    const g = grid.map(r => [...r]);
+    let left = [...arrows], waves = 0;
+    while (left.length) {
+      const free = left.filter(a => !blockerOf(g, a));
+      if (!free.length) return Infinity;
+      for (const a of free) for (const [x, y] of a.cells) g[y][x] = null;
+      left = left.filter(a => !free.includes(a));
+      waves++;
+    }
+    return waves;
+  }
+
+  // Gera vários tabuleiros cheios para a fase e, nas fases mais avançadas,
+  // fica com o que tem a cadeia de dependência mais longa.
   function generate(level) {
     const rng = mulberry32(level * 7919 + 17);
-    const { size, density, maxLen, greed } = levelParams(level);
-    const target = Math.round(size * size * density);
-    const grid = Array.from({ length: size }, () => Array(size).fill(null));
-    const rayCount = Array.from({ length: size }, () => Array(size).fill(0));
-    const arrows = [];
-    let filled = 0, failures = 0;
-
-    while (filled < target && failures < 60) {
-      const candidates = [];
-      for (let i = 0; i < 24; i++) {
-        const c = tryArrow(grid, size, rng, maxLen);
-        if (c) {
-          c.score = c.cells.reduce((s, [x, y]) => s + rayCount[y][x], 0);
-          candidates.push(c);
-        }
-      }
-      if (!candidates.length) { failures++; continue; }
-
-      let pool = candidates;
-      if (rng() < greed) {
-        const best = Math.max(...candidates.map(c => c.score));
-        pool = candidates.filter(c => c.score === best);
-      }
-      const pick = pool[Math.floor(rng() * pool.length)];
-      const arrow = { id: arrows.length, cells: pick.cells, dir: pick.dir };
-      for (const [x, y] of arrow.cells) grid[y][x] = arrow;
-      const [hx, hy] = headOf(arrow);
-      for (const [x, y] of rayCells(hx, hy, arrow.dir, size)) rayCount[y][x]++;
-      arrows.push(arrow);
-      filled += arrow.cells.length;
+    const { size, maxLen, greed } = levelParams(level);
+    let best = null;
+    for (let tries = 0; tries < 200 && (!best || tries < 12); tries++) {
+      const paths = partition(size, rng, maxLen);
+      if (!paths) continue;
+      const oriented = orient(paths, size, rng, greed);
+      if (!oriented) continue;
+      const grid = Array.from({ length: size }, () => Array(size).fill(null));
+      const arrows = oriented.map((o, id) => ({ id, cells: o.cells, dir: o.dir }));
+      for (const a of arrows) for (const [x, y] of a.cells) grid[y][x] = a;
+      const depth = chainDepth(grid, arrows);
+      if (!best || (rng() < greed ? depth > best.depth : false)) best = { size, grid, arrows, depth };
     }
-    return { size, grid, arrows };
+    return best;
   }
 
   // ---------- Estado e interface ----------
@@ -509,7 +570,7 @@
   $('restart-btn').addEventListener('click', () => startLevel(state.level));
 
   // Exposto para testes.
-  window.ArrowsGame = { generate, blockerOf, levelParams };
+  window.ArrowsGame = { generate, blockerOf, levelParams, chainDepth };
 
   startLevel(loadNum('arrows-level'));
 })();
