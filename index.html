@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arrows Puzzle</title>
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --surface: #fffdf8;
+    --cell: #ebe6db;
+    --text: #2b2a27;
+    --muted: #7a766c;
+    --arrow: #2f5d8a;
+    --danger: #c0392b;
+    --success: #2e8b57;
+    --hint: #e0a100;
+    --shadow: 0 2px 10px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1c1f;
+      --surface: #25272b;
+      --cell: #2f3237;
+      --text: #ecebe7;
+      --muted: #9a978f;
+      --arrow: #7fb3e6;
+      --danger: #ff6b5b;
+      --success: #5cc98a;
+      --hint: #ffc53d;
+      --shadow: 0 2px 10px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1c1f;
+    --surface: #25272b;
+    --cell: #2f3237;
+    --text: #ecebe7;
+    --muted: #9a978f;
+    --arrow: #7fb3e6;
+    --danger: #ff6b5b;
+    --success: #5cc98a;
+    --hint: #ffc53d;
+    --shadow: 0 2px 10px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1 { font-size: 1.6rem; margin: 4px 0 12px; letter-spacing: .02em; }
+  .hud {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: .95rem;
+  }
+  .hud .label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+  .hud .value { font-weight: 600; font-size: 1.1rem; }
+  .lives { color: var(--danger); letter-spacing: 2px; }
+  .lives .lost { opacity: .2; }
+
+  .board-wrap {
+    width: min(100%, 480px);
+    aspect-ratio: 1;
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .board {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    gap: 4px;
+  }
+  .cell {
+    background: var(--cell);
+    border-radius: 8px;
+    position: relative;
+  }
+  .cell.blocker { animation: blink .6s ease; }
+  .arrow {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--arrow);
+    transition: transform .4s cubic-bezier(.5,0,.9,.5), opacity .4s ease;
+    z-index: 1;
+  }
+  .arrow svg { width: 72%; height: 72%; pointer-events: none; }
+  .arrow.flying { opacity: 0; pointer-events: none; }
+  .arrow.shake { animation: shake .4s ease; color: var(--danger); }
+  .arrow.hint { color: var(--hint); animation: pulse 1s ease infinite; }
+
+  @keyframes shake {
+    0%,100% { translate: 0 0; }
+    20% { translate: -5px 0; }
+    40% { translate: 5px 0; }
+    60% { translate: -4px 0; }
+    80% { translate: 4px 0; }
+  }
+  @keyframes blink {
+    0%,100% { background: var(--cell); }
+    40% { background: color-mix(in srgb, var(--danger) 35%, var(--cell)); }
+  }
+  @keyframes pulse {
+    0%,100% { scale: 1; }
+    50% { scale: 1.15; }
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  button.btn {
+    font: inherit;
+    font-size: .95rem;
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  button.btn:disabled { opacity: .45; cursor: default; }
+  button.btn.primary { background: var(--arrow); color: var(--surface); font-weight: 600; }
+
+  .help { color: var(--muted); font-size: .85rem; max-width: 480px; text-align: center; margin-top: 14px; line-height: 1.4; }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    z-index: 5;
+    text-align: center;
+    padding: 20px;
+  }
+  .overlay.show { display: flex; }
+  .overlay h2 { margin: 0; font-size: 1.5rem; }
+  .overlay p { margin: 0 0 6px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>Arrows</h1>
+
+  <div class="hud">
+    <div><div class="label">Fase</div><div class="value" id="level">1</div></div>
+    <div><div class="label">Setas</div><div class="value" id="remaining">0</div></div>
+    <div><div class="label">Vidas</div><div class="value lives" id="lives"></div></div>
+    <div><div class="label">Recorde</div><div class="value" id="best">1</div></div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+    <div class="overlay" id="overlay">
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-text"></p>
+      <button class="btn primary" id="overlay-btn"></button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="hint-btn">Dica (2)</button>
+    <button class="btn" id="restart-btn">Reiniciar fase</button>
+  </div>
+
+  <p class="help">
+    Toque numa seta para ela sair do tabuleiro na direção em que aponta.
+    Ela só sai se não houver outra seta no caminho. Tocar numa seta bloqueada custa uma vida.
+  </p>
+
+<script>
+(() => {
+  const DIRS = {
+    up:    { dx: 0,  dy: -1, rot: 0 },
+    right: { dx: 1,  dy: 0,  rot: 90 },
+    down:  { dx: 0,  dy: 1,  rot: 180 },
+    left:  { dx: -1, dy: 0,  rot: 270 },
+  };
+  const DIR_KEYS = Object.keys(DIRS);
+  const MAX_LIVES = 3;
+  const HINTS_PER_LEVEL = 2;
+  const ARROW_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M12 20V5"/><path d="M5.5 11.5 12 5l6.5 6.5"/></svg>';
+
+  // Gerador pseudoaleatório com semente: a mesma fase sempre gera o mesmo tabuleiro.
+  function mulberry32(seed) {
+    return () => {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function levelParams(level) {
+    return {
+      size: Math.min(4 + Math.floor((level - 1) / 3), 9),
+      // fração das casas ocupadas por setas
+      density: Math.min(0.45 + level * 0.035, 0.92),
+      // chance de escolher a posição que mais bloqueia outras setas (cria cadeias longas)
+      greed: Math.min(0.15 + level * 0.07, 0.95),
+    };
+  }
+
+  // Casas no caminho de uma seta até a borda.
+  function pathCells(x, y, dir, size) {
+    const { dx, dy } = DIRS[dir];
+    const cells = [];
+    let cx = x + dx, cy = y + dy;
+    while (cx >= 0 && cy >= 0 && cx < size && cy < size) {
+      cells.push([cx, cy]);
+      cx += dx; cy += dy;
+    }
+    return cells;
+  }
+
+  function firstBlocker(grid, x, y, dir) {
+    for (const [cx, cy] of pathCells(x, y, dir, grid.length)) {
+      if (grid[cy][cx]) return [cx, cy];
+    }
+    return null;
+  }
+
+  // Monta o tabuleiro de trás para frente: cada seta nova é colocada com o caminho livre
+  // em relação às que já estão lá. Remover na ordem inversa sempre funciona, então
+  // toda fase tem solução. Preferir casas que ficam no caminho de setas existentes
+  // cria dependências (A só sai depois de B, que só sai depois de C...).
+  function generate(level) {
+    const rng = mulberry32(level * 7919 + 17);
+    const { size, density, greed } = levelParams(level);
+    const target = Math.max(3, Math.round(size * size * density));
+    const grid = Array.from({ length: size }, () => Array(size).fill(null));
+    const placed = [];
+
+    while (placed.length < target) {
+      const blockCount = Array.from({ length: size }, () => Array(size).fill(0));
+      for (const a of placed) {
+        for (const [cx, cy] of pathCells(a.x, a.y, a.dir, size)) blockCount[cy][cx]++;
+      }
+      const candidates = [];
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          if (grid[y][x]) continue;
+          for (const dir of DIR_KEYS) {
+            if (!firstBlocker(grid, x, y, dir)) {
+              candidates.push({ x, y, dir, score: blockCount[y][x] });
+            }
+          }
+        }
+      }
+      if (!candidates.length) break;
+
+      let pool = candidates;
+      if (rng() < greed) {
+        const best = Math.max(...candidates.map(c => c.score));
+        pool = candidates.filter(c => c.score === best);
+      }
+      const pick = pool[Math.floor(rng() * pool.length)];
+      const arrow = { id: placed.length, x: pick.x, y: pick.y, dir: pick.dir };
+      grid[pick.y][pick.x] = arrow;
+      placed.push(arrow);
+    }
+    return { size, grid, count: placed.length };
+  }
+
+  // ---------- Estado e interface ----------
+  const $ = id => document.getElementById(id);
+  const boardEl = $('board');
+  const state = { level: 1, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid: null, size: 0, remaining: 0, busy: false, over: false };
+  let cellEls = [];
+
+  function loadBest() {
+    try { return parseInt(localStorage.getItem('arrows-best') || '1', 10) || 1; } catch { return 1; }
+  }
+  function saveBest(level) {
+    try { if (level > loadBest()) localStorage.setItem('arrows-best', String(level)); } catch {}
+  }
+  function loadLevel() {
+    try { return parseInt(localStorage.getItem('arrows-level') || '1', 10) || 1; } catch { return 1; }
+  }
+  function saveLevel(level) {
+    try { localStorage.setItem('arrows-level', String(level)); } catch {}
+  }
+
+  function startLevel(level) {
+    const { size, grid, count } = generate(level);
+    Object.assign(state, { level, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid, size, remaining: count, busy: false, over: false });
+    saveLevel(level);
+    hideOverlay();
+    render();
+  }
+
+  function render() {
+    const { size, grid } = state;
+    boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+    boardEl.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+    boardEl.innerHTML = '';
+    cellEls = [];
+    for (let y = 0; y < size; y++) {
+      const row = [];
+      for (let x = 0; x < size; x++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        const a = grid[y][x];
+        if (a) {
+          const btn = document.createElement('button');
+          btn.className = 'arrow';
+          btn.setAttribute('aria-label', `Seta para ${{ up: 'cima', right: 'a direita', down: 'baixo', left: 'a esquerda' }[a.dir]}`);
+          btn.innerHTML = ARROW_SVG;
+          btn.firstChild.style.transform = `rotate(${DIRS[a.dir].rot}deg)`;
+          btn.addEventListener('click', () => tap(x, y, btn));
+          cell.appendChild(btn);
+        }
+        boardEl.appendChild(cell);
+        row.push(cell);
+      }
+      cellEls.push(row);
+    }
+    updateHud();
+  }
+
+  function updateHud() {
+    $('level').textContent = state.level;
+    $('remaining').textContent = state.remaining;
+    $('best').textContent = Math.max(loadBest(), state.level);
+    $('lives').innerHTML = Array.from({ length: MAX_LIVES }, (_, i) =>
+      `<span class="${i < state.lives ? '' : 'lost'}">♥</span>`).join('');
+    const hb = $('hint-btn');
+    hb.textContent = `Dica (${state.hints})`;
+    hb.disabled = state.hints <= 0 || state.over;
+  }
+
+  function tap(x, y, btn) {
+    if (state.over) return;
+    const a = state.grid[y][x];
+    if (!a) return;
+    const blocker = firstBlocker(state.grid, x, y, a.dir);
+
+    if (blocker) {
+      state.lives--;
+      btn.classList.remove('shake');
+      void btn.offsetWidth;
+      btn.classList.add('shake');
+      const bCell = cellEls[blocker[1]][blocker[0]];
+      bCell.classList.remove('blocker');
+      void bCell.offsetWidth;
+      bCell.classList.add('blocker');
+      if (navigator.vibrate) navigator.vibrate(80);
+      updateHud();
+      if (state.lives <= 0) {
+        state.over = true;
+        updateHud();
+        setTimeout(() => showOverlay('Sem vidas!', `Você ficou sem vidas na fase ${state.level}.`, 'Tentar de novo', () => startLevel(state.level)), 450);
+      }
+      return;
+    }
+
+    // Seta livre: sai voando na direção em que aponta.
+    state.grid[y][x] = null;
+    state.remaining--;
+    document.querySelectorAll('.arrow.hint').forEach(el => el.classList.remove('hint'));
+    const { dx, dy } = DIRS[a.dir];
+    const dist = boardEl.clientWidth;
+    btn.classList.add('flying');
+    btn.style.transform = `translate(${dx * dist}px, ${dy * dist}px)`;
+    setTimeout(() => btn.remove(), 420);
+    updateHud();
+
+    if (state.remaining === 0) {
+      state.over = true;
+      saveBest(state.level + 1);
+      saveLevel(state.level + 1);
+      updateHud();
+      setTimeout(() => showOverlay('Fase concluída!', `Você limpou a fase ${state.level}.`, 'Próxima fase', () => startLevel(state.level + 1)), 450);
+    }
+  }
+
+  function useHint() {
+    if (state.hints <= 0 || state.over) return;
+    const { grid, size } = state;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const a = grid[y][x];
+        if (a && !firstBlocker(grid, x, y, a.dir)) {
+          state.hints--;
+          const btn = cellEls[y][x].querySelector('.arrow');
+          if (btn) btn.classList.add('hint');
+          updateHud();
+          return;
+        }
+      }
+    }
+  }
+
+  function showOverlay(title, text, label, onClick) {
+    $('overlay-title').textContent = title;
+    $('overlay-text').textContent = text;
+    const b = $('overlay-btn');
+    b.textContent = label;
+    b.onclick = onClick;
+    $('overlay').classList.add('show');
+  }
+  function hideOverlay() { $('overlay').classList.remove('show'); }
+
+  $('hint-btn').addEventListener('click', useHint);
+  $('restart-btn').addEventListener('click', () => startLevel(state.level));
+
+  // Exposto para testes.
+  window.ArrowsGame = { generate, firstBlocker, levelParams };
+
+  startLevel(loadLevel());
+})();
+</script>
+</body>
+</html>
