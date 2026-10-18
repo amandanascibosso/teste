@@ -27,7 +27,7 @@ seta aponta, tirando uma por vez só quando o caminho à frente da ponta já est
 tem solução.
 
 A cada fase:
-- o tabuleiro cresce (de 5x5 até 10x10);
+- o tabuleiro cresce uma casa de lado a cada 4 fases (de 9x9 até 15x15);
 - as setas ficam mais compridas e com mais curvas;
 - o gerador prefere as escolhas que criam cadeias longas de dependência
   (A só sai depois de B, que só sai depois de C...).

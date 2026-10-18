@@ -472,13 +472,15 @@
   function levelPlan(level) {
     const rng = mulberry32(level * 104729 + 3);
     const intro = MECHANICS.find(m => m.level === level);
-    let size = Math.min(5 + Math.floor((level - 1) / 4), 10);
-    let maxLen = Math.min(3 + Math.floor(level / 2), 9);
+    // começa em 9x9 e ganha uma casa de lado a cada 4 fases, até 15x15
+    let size = Math.min(9 + Math.floor((level - 1) / 4), 15);
+    let maxLen = Math.min(4 + Math.floor(level / 2), 12);
     let mechs;
     if (intro) {
       mechs = [intro.id];
-      size = Math.min(size, 7);
-      maxLen = Math.min(maxLen, 6);
+      // a fase de apresentação é um pouco menor, para a regra nova ficar fácil de ver
+      size = Math.max(9, size - 2);
+      maxLen = Math.min(maxLen, 7);
     } else {
       const known = MECHANICS.filter(m => m.level < level).map(m => m.id);
       const k = Math.min(known.length, 1 + Math.floor(rng() * 3));
@@ -695,7 +697,8 @@
     const area = size * size;
     const amount = (introShare, mixShare) => Math.max(1, Math.round(area * (intro ? introShare : mixShare)));
     const spinners = [];
-    if (has('wall')) for (let i = amount(0.1, 0.05); i > 0; i--) { const [x, y] = pool.pop(); special[y][x] = { type: 'wall' }; }
+    // paredes demais deixam setas sem saída nos tabuleiros grandes
+    if (has('wall')) for (let i = Math.min(amount(0.1, 0.05), size); i > 0; i--) { const [x, y] = pool.pop(); special[y][x] = { type: 'wall' }; }
     if (has('hole')) for (let i = amount(0.1, 0.05); i > 0; i--) { const [x, y] = pool.pop(); special[y][x] = { type: 'hole' }; }
     if (has('portal')) {
       for (let p = 0; p < (intro ? 2 : 1); p++) {
@@ -826,7 +829,9 @@
     const arrows = lv.arrows;
     const n = arrows.length;
     const has = id => plan.mechs.includes(id);
-    const count = (introN, mixN) => plan.intro ? introN : mixN;
+    // tabuleiros grandes recebem mais empecilhos de seta
+    const scale = Math.max(1, Math.round(lv.size * lv.size / 100));
+    const count = (introN, mixN) => (plan.intro ? introN : mixN) * scale;
     const pick = (k, ok = () => true) => {
       const chosen = shuffle(arrows.filter(a => !a.deco && !a.spinner && ok(a)), rng).slice(0, k);
       chosen.forEach(a => { a.deco = true; });
@@ -917,15 +922,69 @@
     return waves;
   }
 
+  // Uma seta com as duas pontas viradas para parede, borda fechada ou portal em círculo
+  // nunca sai. Essas setas são cortadas em dois pedaços que tenham alguma saída.
+  function fixDeadPaths(lv, paths, rng) {
+    const canEverExit = cells => {
+      if (cells.length < 2) return false;
+      return [cells, [...cells].reverse()].some(c => {
+        const [hx, hy] = c[c.length - 1];
+        const dir = dirBetween(c[c.length - 2], c[c.length - 1]);
+        const r = route(lv, hx, hy, dir);
+        return r.end === 'out' && !r.cells.some(([x, y]) => c.some(([px, py]) => px === x && py === y));
+      });
+    };
+    // corta o caminho em pedaços de 2 ou mais casas que tenham saída; null se não der
+    const split = p => {
+      if (canEverExit(p)) return [p];
+      for (const i of shuffle([...Array(Math.max(0, p.length - 3)).keys()].map(i => i + 2), rng)) {
+        const a = split(p.slice(0, i));
+        const b = a && split(p.slice(i));
+        if (a && b) return [...a, ...b];
+      }
+      return null;
+    };
+    const touching = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+    let list = [...paths];
+    for (let guard = 0; guard < 500; guard++) {
+      const di = list.findIndex(p => !canEverExit(p));
+      if (di === -1) return list;
+      const p = list[di];
+      let fixed = split(p);
+      let replace = [di];
+      // curta demais para cortar: junta com uma seta vizinha, ponta com ponta, e corta de novo
+      if (!fixed) {
+        for (const qi of shuffle([...list.keys()].filter(i => i !== di), rng)) {
+          const q = list[qi];
+          const joins = [
+            touching(p[p.length - 1], q[0]) && [...p, ...q],
+            touching(p[p.length - 1], q[q.length - 1]) && [...p, ...[...q].reverse()],
+            touching(p[0], q[q.length - 1]) && [...q, ...p],
+            touching(p[0], q[0]) && [...[...q].reverse(), ...p],
+          ].filter(Boolean);
+          for (const j of joins) {
+            fixed = split(j);
+            if (fixed) { replace = [di, qi]; break; }
+          }
+          if (fixed) break;
+        }
+      }
+      if (!fixed) return null;
+      list = list.filter((_, i) => !replace.includes(i)).concat(fixed);
+    }
+    return null;
+  }
+
   function buildLevel(plan, rng) {
     const { size, maxLen, greed } = plan;
     const { special, spinners, closed } = placeSpecials(plan, rng);
     const blocked = special.map(row => row.map(s => !!s));
     spinners.forEach(([x, y]) => { blocked[y][x] = true; });
-    const paths = partition(size, rng, maxLen, blocked);
+    const lv = { size, special, closed, limit: null, fog: false, plan };
+    const parts = partition(size, rng, maxLen, blocked);
+    const paths = parts && fixDeadPaths(lv, parts, rng);
     if (!paths) return null;
     const all = [...paths.map(cells => ({ cells })), ...spinners.map(c => ({ cells: [c], spinner: true }))];
-    const lv = { size, special, closed, limit: null, fog: false, plan };
     const order = orient(lv, all, rng, greed);
     if (!order) return null;
     lv.arrows = order.map((o, i) => ({ id: i, index: i, cells: o.cells, dir: o.dir, spinner: o.spinner }));
