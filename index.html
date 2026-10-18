@@ -340,6 +340,11 @@
   .access .options { display: grid; gap: 4px; padding: 0 14px 12px; }
   .access label { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
   .access input { width: 1.4em; height: 1.4em; accent-color: var(--arrow); }
+  .crash {
+    position: fixed; inset: auto 0 0 0; z-index: 20; margin: 0;
+    padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: var(--danger); color: #ffffff; font: 600 14px/1.4 ui-monospace, monospace; white-space: pre-wrap;
+  }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   /* Cursor do teclado e do controle */
@@ -432,6 +437,19 @@
   </p>
   <p class="sr-only" id="sr" aria-live="polite"></p>
 </main>
+<pre class="crash" id="crash" hidden></pre>
+<script>
+  // Mostra na tela qualquer erro do jogo, para dar para mandar uma foto.
+  (() => {
+    const show = msg => {
+      const el = document.getElementById('crash');
+      el.hidden = false;
+      el.textContent += msg + '\n';
+    };
+    window.addEventListener('error', e => show(`Erro: ${e.message} (linha ${e.lineno}:${e.colno})`));
+    window.addEventListener('unhandledrejection', e => show(`Erro: ${e.reason}`));
+  })();
+</script>
 
 <script>
 (() => {
@@ -1937,7 +1955,9 @@
     debugTap: (id, end = 0) => onTap(ui.st.arrows[id], end),
   };
 
-  startLevel(loadNum('arrows-level'));
+  // espera a página aparecer antes de montar a primeira fase
+  $('toast').textContent = 'Montando a fase...';
+  requestAnimationFrame(() => setTimeout(() => startLevel(loadNum('arrows-level')), 30));
 })();
 </script>
 </body>
