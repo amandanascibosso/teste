@@ -85,33 +85,83 @@
     color-scheme: dark;
   }
 
+  :root.large-text { font-size: 130%; }
+  :root.thick .arrow .line { stroke-width: 22; }
+  :root.thick .arrow.selected .line { stroke-width: 28; }
+  :root.thick .dot { r: 8px; }
+  /* Alto contraste: fundo preto, setas brancas e cores bem saturadas, em qualquer tema. */
+  :root.high-contrast {
+    --bg: #000000;
+    --surface: #000000;
+    --cell: #8a8a8a;
+    --text: #ffffff;
+    --muted: #e6e6e6;
+    --arrow: #ffffff;
+    --danger: #ff5c5c;
+    --hint: #ffd400;
+    --wall: #c8c8c8;
+    --hole: #5a5a5a;
+    --portal-a: #ff4fd8;
+    --portal-b: #00e5ff;
+    --ice: #6fd3ff;
+    --group-a: #ff9a1f;
+    --group-b: #3dff7a;
+    --ghost: #cfa8ff;
+    --lock-1: #ff4fd8;
+    --lock-2: #00e5ff;
+    --lock-3: #ffd400;
+    --fog: #3d3d3d;
+    --shadow: 0 0 0 2px #ffffff;
+    color-scheme: dark;
+  }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-body);
+    font-size: 1rem;
     min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     padding-block: 16px;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     -webkit-tap-highlight-color: transparent;
   }
-  h1 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 4px 0 12px; letter-spacing: .04em; }
+  h1 { grid-area: title; font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 4px 0 0; letter-spacing: .04em; }
+
+  /* Uma coluna no celular e no tablet em pé; com a tela deitada (tablet, computador, TV),
+     o tabuleiro fica à esquerda, do tamanho da altura da tela, e o resto numa coluna ao lado. */
+  .layout {
+    display: grid;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    gap: 12px;
+    justify-items: center;
+    grid-template-areas: "title" "hud" "board" "toast" "controls" "access" "legend" "help";
+  }
+  .layout > :not(h1):not(.board-wrap) { width: 100%; max-width: 760px; }
+  @media (orientation: landscape) and (min-width: 860px) {
+    .layout {
+      grid-template-columns: auto minmax(280px, 400px);
+      grid-template-rows: repeat(7, auto) 1fr;
+      grid-template-areas: "board title" "board hud" "board toast" "board controls" "board access" "board legend" "board help" "board .";
+      justify-content: center;
+      align-items: start;
+      justify-items: stretch;
+      column-gap: 32px;
+    }
+  }
   button:focus-visible { outline: 3px solid var(--hint); outline-offset: 2px; }
 
   .hud {
-    width: 100%;
-    max-width: 480px;
+    grid-area: hud;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 12px;
     font-size: .95rem;
   }
   .hud .label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
@@ -121,7 +171,10 @@
   .taps-low { color: var(--danger); }
 
   .board-wrap {
-    width: min(100%, 480px);
+    grid-area: board;
+    /* o tabuleiro cresce até caber na tela, sem passar da largura nem da altura */
+    width: min(100%, max(300px, calc(100vh - 290px)));
+    width: min(100%, max(300px, calc(100dvh - 290px)));
     max-width: 100%;
     aspect-ratio: 1;
     background: var(--surface);
@@ -134,12 +187,18 @@
   .board { width: 100%; height: 100%; display: block; overflow: visible; }
 
   .toast {
+    grid-area: toast;
     min-height: 1.4em;
-    margin: 10px 0 0;
+    margin: 0;
     color: var(--danger);
-    font-size: .9rem;
+    font-size: .95rem;
     text-align: center;
-    max-width: 480px;
+  }
+  @media (orientation: landscape) and (min-width: 860px) {
+    .board-wrap {
+      width: min(calc(100vh - 40px), calc(100vw - 480px));
+      width: min(calc(100dvh - 40px), calc(100vw - 480px));
+    }
   }
 
   /* ---------- Tabuleiro ---------- */
@@ -215,9 +274,9 @@
   }
 
   .controls {
+    grid-area: controls;
     display: flex;
     gap: 10px;
-    margin-top: 8px;
     flex-wrap: wrap;
     justify-content: center;
   }
@@ -236,11 +295,9 @@
   button.btn.primary { background: var(--arrow); color: var(--surface); font-weight: 600; }
 
   .legend {
-    width: 100%;
-    max-width: 480px;
+    grid-area: legend;
     display: grid;
     gap: 8px;
-    margin-top: 16px;
   }
   .legend:empty { display: none; }
   .legend-title { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
@@ -253,7 +310,21 @@
   }
   .rule strong { display: block; color: var(--arrow); }
 
-  .help { color: var(--muted); font-size: .85rem; max-width: 480px; text-align: center; margin-top: 14px; line-height: 1.4; }
+  .help { grid-area: help; color: var(--muted); font-size: .9rem; text-align: center; margin: 0; line-height: 1.45; }
+  .help kbd { font: inherit; font-weight: 700; color: var(--text); }
+
+  /* Acessibilidade */
+  .access { grid-area: access; background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); }
+  .access summary { cursor: pointer; padding: 12px 14px; font-weight: 700; color: var(--arrow); }
+  .access summary:focus-visible { outline: 3px solid var(--hint); outline-offset: 2px; border-radius: 10px; }
+  .access .options { display: grid; gap: 4px; padding: 0 14px 12px; }
+  .access label { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
+  .access input { width: 1.4em; height: 1.4em; accent-color: var(--arrow); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Cursor do teclado e do controle */
+  .cursor { fill: none; stroke: var(--hint); stroke-width: 9; pointer-events: none; }
+  .arrow.selected .line { stroke-width: 21; }
 
   .overlay {
     position: absolute;
@@ -273,6 +344,18 @@
   .overlay p { margin: 0 0 6px; color: var(--muted); max-width: 34ch; line-height: 1.45; }
   .overlay .eyebrow { color: var(--hint); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin: 0; }
 
+  @media (orientation: landscape) and (min-width: 860px) {
+    h1 { justify-self: start; }
+    .controls { justify-content: flex-start; }
+    .help, .toast { text-align: left; }
+  }
+  /* TV e telas grandes: texto maior para ler de longe */
+  @media (min-width: 1500px) {
+    :root { font-size: 125%; }
+    :root.large-text { font-size: 160%; }
+    .layout { grid-template-columns: auto minmax(320px, 520px); }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .arrow.shake, .arrow.hint, .arrow.blocker, .arrow.nudge, .badge.urgent, .flash { animation: none; }
     .arrow .rot, .fog-cell { transition: none; }
@@ -280,6 +363,7 @@
 </style>
 </head>
 <body>
+<main class="layout">
   <h1>Arrows</h1>
 
   <div class="hud">
@@ -291,7 +375,8 @@
   </div>
 
   <div class="board-wrap">
-    <svg class="board" id="board" aria-label="Tabuleiro"></svg>
+    <svg class="board" id="board" role="application" tabindex="0"
+      aria-label="Tabuleiro. Use as setas do teclado para mover o cursor e Enter para tocar na seta."></svg>
     <div class="overlay" id="overlay">
       <p class="eyebrow" id="overlay-eyebrow"></p>
       <h2 id="overlay-title"></h2>
@@ -307,12 +392,25 @@
     <button class="btn" id="restart-btn">Reiniciar fase</button>
   </div>
 
+  <details class="access" id="access">
+    <summary>Acessibilidade</summary>
+    <div class="options">
+      <label><input type="checkbox" id="opt-large"> Texto e selos maiores</label>
+      <label><input type="checkbox" id="opt-thick"> Setas mais grossas</label>
+      <label><input type="checkbox" id="opt-contrast"> Alto contraste</label>
+    </div>
+  </details>
+
   <div class="legend" id="legend"></div>
 
-  <p class="help">
+  <p class="help" id="help">
     Toque numa seta para ela deslizar para fora do tabuleiro, seguindo a ponta.
     Ela só sai se não houver nada à frente da ponta. Tocar numa seta que não pode sair custa uma vida.
+    No teclado: <kbd>setas</kbd> movem o cursor, <kbd>Enter</kbd> toca e <kbd>D</kbd> pede dica.
+    No controle: <kbd>direcional</kbd> move, <kbd>A</kbd> toca e <kbd>Y</kbd> pede dica.
   </p>
+  <p class="sr-only" id="sr" aria-live="polite"></p>
+</main>
 
 <script>
 (() => {
@@ -871,7 +969,11 @@
   const $ = id => document.getElementById(id);
   const boardEl = $('board');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const ui = { st: null, level: 1, hints: HINTS_PER_LEVEL, els: new Map(), specials: new Map(), sides: new Map(), fog: [] };
+  const ui = {
+    st: null, level: 1, hints: HINTS_PER_LEVEL, els: new Map(), specials: new Map(), sides: new Map(), fog: [],
+    cursor: { x: 0, y: 0, visible: false, el: null },
+    settings: { large: false, thick: false, contrast: false },
+  };
 
   function loadNum(key) {
     try { return parseInt(localStorage.getItem(key) || '1', 10) || 1; } catch { return 1; }
@@ -945,7 +1047,7 @@
       if (sp) ui.specials.set(y * size + x, el);
     }
 
-    for (const a of st.arrows) buildArrow(a);
+    for (const a of st.arrows) if (st.alive.has(a)) buildArrow(a);
 
     if (lv.fog) {
       const fogLayer = svgEl('g');
@@ -957,20 +1059,27 @@
       }
       boardEl.appendChild(fogLayer);
     }
+    ui.cursor.el = svgEl('rect', { class: 'cursor', width: CELL - 6, height: CELL - 6, rx: 22 });
+    boardEl.appendChild(ui.cursor.el);
+    ui.cursor.x = Math.min(ui.cursor.x, size - 1);
+    ui.cursor.y = Math.min(ui.cursor.y, size - 1);
     refresh();
   }
+
+  const headScale = () => ui.settings.thick ? 1.3 : 1;
+  const badgeScale = () => ui.settings.large || ui.settings.thick ? 1.3 : 1;
 
   function head(x, y, dir) {
     const g = svgEl('g', { transform: `translate(${center(x)} ${center(y)})` });
     const rot = svgEl('g', { class: 'rot' });
     rot.style.transform = `rotate(${DIRS[dir].rot}deg)`;
-    rot.appendChild(svgEl('polygon', { class: 'head', points: HEAD_POINTS }));
+    rot.appendChild(svgEl('polygon', { class: 'head', points: HEAD_POINTS, transform: `scale(${headScale()})` }));
     g.appendChild(rot);
     return { g, rot };
   }
 
   function badge(x, y, kind) {
-    const g = svgEl('g', { class: `badge ${kind}`, transform: `translate(${center(x)} ${center(y)})` });
+    const g = svgEl('g', { class: `badge ${kind}`, transform: `translate(${center(x)} ${center(y)}) scale(${badgeScale()})` });
     g.appendChild(svgEl('circle', { class: 'badge-bg', r: 27 }));
     return g;
   }
@@ -983,7 +1092,7 @@
     if (a.ghost) classes.push('ghost');
     if (a.group === 0) classes.push('group-a');
     if (a.group === 1) classes.push('group-b');
-    const g = svgEl('g', { class: classes.join(' '), tabindex: 0, role: 'button', 'data-id': a.id });
+    const g = svgEl('g', { class: classes.join(' '), role: 'img', 'data-id': a.id });
     const els = { g, a };
 
     if (a.cells.length > 1) {
@@ -994,7 +1103,7 @@
     els.head = h.g; els.rot = h.rot;
     if (a.spinner) {
       h.g.insertBefore(svgEl('circle', { class: 'ring', r: 36 }), h.rot);
-      h.rot.firstChild.setAttribute('transform', 'scale(.8)');
+      h.rot.firstChild.setAttribute('transform', `scale(${0.8 * headScale()})`);
     }
     g.appendChild(h.g);
     if (a.double) {
@@ -1042,9 +1151,6 @@
     else g.appendChild(svgEl('circle', { class: 'hit-dot', cx: center(hx), cy: center(hy), r: 48 }));
 
     g.addEventListener('click', e => onTap(a, pickEnd(a, e)));
-    g.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap(a, e.shiftKey ? 1 : 0); }
-    });
     boardEl.appendChild(g);
     ui.els.set(a, els);
   }
@@ -1099,6 +1205,7 @@
     if (st.lv.fog) {
       ui.fog.forEach((r, i) => r.classList.toggle('clear', st.revealed.has(i)));
     }
+    updateCursor(false);
     updateHud();
   }
 
@@ -1329,14 +1436,183 @@
     b.textContent = label;
     b.onclick = onClick;
     $('overlay').classList.add('show');
+    if (ui.cursor.visible) b.focus();
   }
-  function hideOverlay() { $('overlay').classList.remove('show'); }
+  function hideOverlay() {
+    $('overlay').classList.remove('show');
+    if (ui.cursor.visible) boardEl.focus();
+  }
+  const overlayOpen = () => $('overlay').classList.contains('show');
+
+  // ======================================================================
+  // Cursor: teclado e controle (videogame, TV)
+  // ======================================================================
+  function describeCell(x, y) {
+    const { st } = ui;
+    const where = `coluna ${x + 1}, linha ${y + 1}`;
+    if (st.lv.fog && !st.revealed.has(y * st.size + x)) return `Neblina, ${where}`;
+    const a = st.grid[y][x];
+    if (a) {
+      const extra = [];
+      if (a.number != null) extra.push(`número ${a.number}`);
+      if (a.counter) extra.push(`faltam ${a.counterLeft} toques`);
+      if (a.bomb) extra.push(`bomba em ${a.bombLeft}`);
+      if (a.lock != null) extra.push('com cadeado');
+      if (a.key != null) extra.push('com chave');
+      if (a.frozen) extra.push('congelada');
+      if (a.ghost) extra.push(a.solid ? 'fantasma acesa' : 'fantasma apagada');
+      if (a.group === 0) extra.push('laranja');
+      if (a.group === 1) extra.push('verde');
+      if (a.double) extra.push('de duas pontas');
+      const dir = a.hidden && !a.shown ? 'com a ponta escondida' : `apontando para ${DIR_NAMES[a.dir]}`;
+      return `Seta ${dir}${extra.length ? ', ' + extra.join(', ') : ''}. ${where}`;
+    }
+    const sp = st.lv.special[y][x];
+    const names = { wall: 'Parede', hole: 'Buraco', portal: 'Portal' };
+    return `${sp ? names[sp.type] : 'Casa vazia'}, ${where}`;
+  }
+
+  function updateCursor(announce) {
+    const c = ui.cursor;
+    if (!c.el) return;
+    c.el.style.display = c.visible ? '' : 'none';
+    c.el.setAttribute('x', c.x * CELL + 3);
+    c.el.setAttribute('y', c.y * CELL + 3);
+    const under = ui.st.grid[c.y]?.[c.x];
+    for (const [a, els] of ui.els) els.g.classList.toggle('selected', c.visible && a === under);
+    if (announce) $('sr').textContent = describeCell(c.x, c.y);
+  }
+
+  function moveCursor(dx, dy) {
+    const c = ui.cursor;
+    if (!c.visible) c.visible = true;
+    else {
+      c.x = Math.max(0, Math.min(ui.st.size - 1, c.x + dx));
+      c.y = Math.max(0, Math.min(ui.st.size - 1, c.y + dy));
+    }
+    updateCursor(true);
+  }
+
+  // Toca na seta sob o cursor. Na seta de duas pontas, sai pela ponta mais perto do cursor.
+  function pressCursor() {
+    const c = ui.cursor;
+    if (!c.visible) { c.visible = true; updateCursor(true); return; }
+    const { st } = ui;
+    if (st.lv.fog && !st.revealed.has(c.y * st.size + c.x)) {
+      toast('A neblina esconde essa parte. Tire setas perto dela para enxergar.');
+      return;
+    }
+    const a = st.grid[c.y][c.x];
+    if (!a) { toast('Não tem seta aqui.'); return; }
+    let end = 0;
+    if (a.double) {
+      const dist = ([x, y]) => Math.abs(x - c.x) + Math.abs(y - c.y);
+      if (dist(a.cells[0]) < dist(a.cells[a.cells.length - 1])) end = 1;
+    }
+    onTap(a, end);
+    updateCursor(true);
+  }
+
+  const KEY_DIRS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+  document.addEventListener('keydown', e => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const tag = e.target.tagName;
+    const inControl = tag === 'BUTTON' || tag === 'INPUT' || tag === 'SUMMARY';
+    if (overlayOpen()) {
+      if ((e.key === 'Enter' || e.key === ' ') && !inControl) { e.preventDefault(); $('overlay-btn').click(); }
+      return;
+    }
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (KEY_DIRS[k]) {
+      e.preventDefault();
+      moveCursor(...KEY_DIRS[k]);
+    } else if ((k === 'Enter' || k === ' ') && !inControl) {
+      e.preventDefault();
+      pressCursor();
+    } else if (k === 'd' && !inControl) {
+      useHint();
+    }
+  });
+  boardEl.addEventListener('pointerdown', () => {
+    ui.cursor.visible = false;
+    updateCursor(false);
+  });
+
+  // Controle: direcional ou alavanca move, A toca, Y pede dica, Start confirma telas.
+  const pad = { held: {}, next: {}, running: false };
+  function pollPads(now) {
+    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+    if (!pads.length) { pad.running = false; return; }
+    const pressed = {};
+    for (const gp of pads) {
+      const btn = i => gp.buttons[i] && gp.buttons[i].pressed;
+      const ax = i => gp.axes[i] || 0;
+      if (btn(12) || ax(1) < -0.6) pressed.up = true;
+      if (btn(13) || ax(1) > 0.6) pressed.down = true;
+      if (btn(14) || ax(0) < -0.6) pressed.left = true;
+      if (btn(15) || ax(0) > 0.6) pressed.right = true;
+      if (btn(0)) pressed.a = true;
+      if (btn(3)) pressed.y = true;
+      if (btn(9)) pressed.start = true;
+    }
+    const act = {
+      up: () => moveCursor(0, -1), down: () => moveCursor(0, 1),
+      left: () => moveCursor(-1, 0), right: () => moveCursor(1, 0),
+      a: () => overlayOpen() ? $('overlay-btn').click() : pressCursor(),
+      y: () => useHint(),
+      start: () => { if (overlayOpen()) $('overlay-btn').click(); },
+    };
+    for (const name in act) {
+      if (pressed[name]) {
+        const repeats = ['up', 'down', 'left', 'right'].includes(name);
+        if (!pad.held[name]) { act[name](); pad.next[name] = now + 380; }
+        else if (repeats && now >= pad.next[name]) { act[name](); pad.next[name] = now + 110; }
+      }
+      pad.held[name] = !!pressed[name];
+    }
+    requestAnimationFrame(pollPads);
+  }
+  window.addEventListener('gamepadconnected', () => {
+    toast('Controle conectado: direcional move, A toca, Y pede dica.');
+    ui.cursor.visible = true;
+    updateCursor(true);
+    if (!pad.running) { pad.running = true; requestAnimationFrame(pollPads); }
+  });
+
+  // ======================================================================
+  // Opções de acessibilidade
+  // ======================================================================
+  function loadSettings() {
+    try { Object.assign(ui.settings, JSON.parse(localStorage.getItem('arrows-access') || '{}')); } catch {}
+  }
+  function applySettings() {
+    const root = document.documentElement;
+    root.classList.toggle('large-text', ui.settings.large);
+    root.classList.toggle('thick', ui.settings.thick);
+    root.classList.toggle('high-contrast', ui.settings.contrast);
+    $('opt-large').checked = ui.settings.large;
+    $('opt-thick').checked = ui.settings.thick;
+    $('opt-contrast').checked = ui.settings.contrast;
+  }
+  for (const [id, key] of [['opt-large', 'large'], ['opt-thick', 'thick'], ['opt-contrast', 'contrast']]) {
+    $(id).addEventListener('change', e => {
+      ui.settings[key] = e.target.checked;
+      try { localStorage.setItem('arrows-access', JSON.stringify(ui.settings)); } catch {}
+      applySettings();
+      if (ui.st) render();
+    });
+  }
+  loadSettings();
+  applySettings();
 
   $('hint-btn').addEventListener('click', useHint);
   $('restart-btn').addEventListener('click', () => startLevel(ui.level));
 
   // Exposto para testes.
-  window.ArrowsGame = { generate, createState, tap, check, canMove, levelPlan, chainDepth, MECHANICS };
+  window.ArrowsGame = {
+    generate, createState, tap, check, canMove, levelPlan, chainDepth, MECHANICS,
+    debugTap: (id, end = 0) => onTap(ui.st.arrows[id], end),
+  };
 
   startLevel(loadNum('arrows-level'));
 })();

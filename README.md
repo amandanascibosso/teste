@@ -8,6 +8,17 @@ Abra o `index.html` no navegador. As setas são linhas compridas, às vezes com 
 deslizar para fora do tabuleiro, com o corpo seguindo a ponta. Ela só sai se não houver outra seta à frente da ponta. Tocar numa seta bloqueada custa uma vida (são 3 por fase).
 Cada fase tem 2 dicas, que destacam uma seta que já pode sair.
 
+## Telas, controle e acessibilidade
+
+- O tabuleiro cresce até ocupar a tela: no celular e no tablet em pé fica em uma coluna; com a tela
+  deitada (tablet, computador, TV), o tabuleiro fica à esquerda e as informações numa coluna ao lado.
+- Teclado: as setas movem um cursor pelo tabuleiro, `Enter` toca na seta e `D` pede dica.
+- Controle de videogame: direcional (ou alavanca) move o cursor, `A` toca, `Y` pede dica e `Start`
+  confirma as telas de vitória e derrota.
+- Menu **Acessibilidade**: texto e selos maiores, setas mais grossas e alto contraste. As escolhas ficam
+  salvas no aparelho.
+- Leitores de tela anunciam a casa sob o cursor (por exemplo, "Seta apontando para baixo, número 2").
+
 ## Como a dificuldade sobe
 
 As fases são geradas automaticamente e o tabuleiro fica sempre cheio, sem casas vazias. Primeiro o
