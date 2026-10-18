@@ -92,51 +92,33 @@
     overflow: hidden;
     position: relative;
   }
-  .board {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    gap: 4px;
-  }
-  .cell {
-    background: var(--cell);
-    border-radius: 8px;
-    position: relative;
-  }
-  .cell.blocker { animation: blink .6s ease; }
-  .arrow {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    padding: 0;
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--arrow);
-    transition: transform .4s cubic-bezier(.5,0,.9,.5), opacity .4s ease;
-    z-index: 1;
-  }
-  .arrow svg { width: 72%; height: 72%; pointer-events: none; }
-  .arrow.flying { opacity: 0; pointer-events: none; }
+  .board { width: 100%; height: 100%; display: block; overflow: visible; }
+  .dot { fill: var(--cell); }
+  .arrow { cursor: pointer; color: var(--arrow); }
+  .arrow .line { fill: none; stroke: currentColor; stroke-width: 15; stroke-linecap: round; stroke-linejoin: round; }
+  .arrow .head { fill: currentColor; }
+  .arrow .hit { fill: none; stroke: transparent; stroke-width: 80; stroke-linecap: round; stroke-linejoin: round; pointer-events: stroke; }
+  .arrow:focus { outline: none; }
+  .arrow:focus-visible .line { stroke: var(--hint); }
+  .arrow.flying { pointer-events: none; }
   .arrow.shake { animation: shake .4s ease; color: var(--danger); }
-  .arrow.hint { color: var(--hint); animation: pulse 1s ease infinite; }
+  .arrow.blocker { animation: blink .6s ease; }
+  .arrow.hint { color: var(--hint); animation: glow 1s ease infinite; }
 
   @keyframes shake {
-    0%,100% { translate: 0 0; }
-    20% { translate: -5px 0; }
-    40% { translate: 5px 0; }
-    60% { translate: -4px 0; }
-    80% { translate: 4px 0; }
+    0%,100% { transform: translate(0, 0); }
+    20% { transform: translate(-6px, 0); }
+    40% { transform: translate(6px, 0); }
+    60% { transform: translate(-4px, 0); }
+    80% { transform: translate(4px, 0); }
   }
   @keyframes blink {
-    0%,100% { background: var(--cell); }
-    40% { background: color-mix(in srgb, var(--danger) 35%, var(--cell)); }
+    0%,100% { color: var(--arrow); }
+    40% { color: var(--danger); }
   }
-  @keyframes pulse {
-    0%,100% { scale: 1; }
-    50% { scale: 1.15; }
+  @keyframes glow {
+    0%,100% { opacity: 1; }
+    50% { opacity: .45; }
   }
 
   .controls {
@@ -179,7 +161,7 @@
   .overlay h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; color: var(--arrow); }
   .overlay p { margin: 0 0 6px; color: var(--muted); }
   @media (prefers-reduced-motion: reduce) {
-    .arrow, .arrow.shake, .arrow.hint, .cell.blocker { transition: none; animation: none; }
+    .arrow.shake, .arrow.hint, .arrow.blocker { animation: none; }
   }
 </style>
 </head>
@@ -194,7 +176,7 @@
   </div>
 
   <div class="board-wrap">
-    <div class="board" id="board"></div>
+    <svg class="board" id="board" aria-label="Tabuleiro"></svg>
     <div class="overlay" id="overlay">
       <h2 id="overlay-title"></h2>
       <p id="overlay-text"></p>
@@ -208,24 +190,24 @@
   </div>
 
   <p class="help">
-    Toque numa seta para ela sair do tabuleiro na direção em que aponta.
-    Ela só sai se não houver outra seta no caminho. Tocar numa seta bloqueada custa uma vida.
+    Toque numa seta para ela deslizar para fora do tabuleiro, seguindo a ponta.
+    Ela só sai se não houver outra seta à frente da ponta. Tocar numa seta bloqueada custa uma vida.
   </p>
 
 <script>
 (() => {
   const DIRS = {
-    up:    { dx: 0,  dy: -1, rot: 0 },
-    right: { dx: 1,  dy: 0,  rot: 90 },
-    down:  { dx: 0,  dy: 1,  rot: 180 },
-    left:  { dx: -1, dy: 0,  rot: 270 },
+    up:    { dx: 0,  dy: -1 },
+    right: { dx: 1,  dy: 0 },
+    down:  { dx: 0,  dy: 1 },
+    left:  { dx: -1, dy: 0 },
   };
   const DIR_KEYS = Object.keys(DIRS);
+  const DIR_NAMES = { up: 'cima', right: 'a direita', down: 'baixo', left: 'a esquerda' };
   const MAX_LIVES = 3;
   const HINTS_PER_LEVEL = 2;
-  const ARROW_SVG =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
-    '<path d="M12 20V5"/><path d="M5.5 11.5 12 5l6.5 6.5"/></svg>';
+  const CELL = 100; // unidades do SVG por casa
+  const SVG_NS = 'http://www.w3.org/2000/svg';
 
   // Gerador pseudoaleatório com semente: a mesma fase sempre gera o mesmo tabuleiro.
   function mulberry32(seed) {
@@ -239,16 +221,18 @@
 
   function levelParams(level) {
     return {
-      size: Math.min(4 + Math.floor((level - 1) / 3), 9),
+      size: Math.min(5 + Math.floor((level - 1) / 3), 10),
       // fração das casas ocupadas por setas
-      density: Math.min(0.45 + level * 0.035, 0.92),
-      // chance de escolher a posição que mais bloqueia outras setas (cria cadeias longas)
+      density: Math.min(0.6 + level * 0.02, 0.9),
+      // comprimento máximo de uma seta, em casas
+      maxLen: Math.min(3 + Math.floor(level / 2), 9),
+      // chance de escolher a seta que mais bloqueia outras (cria cadeias longas)
       greed: Math.min(0.15 + level * 0.07, 0.95),
     };
   }
 
-  // Casas no caminho de uma seta até a borda.
-  function pathCells(x, y, dir, size) {
+  // Casas à frente da ponta da seta, até a borda.
+  function rayCells(x, y, dir, size) {
     const { dx, dy } = DIRS[dir];
     const cells = [];
     let cx = x + dx, cy = y + dy;
@@ -259,41 +243,89 @@
     return cells;
   }
 
-  function firstBlocker(grid, x, y, dir) {
-    for (const [cx, cy] of pathCells(x, y, dir, grid.length)) {
-      if (grid[cy][cx]) return [cx, cy];
+  const headOf = a => a.cells[a.cells.length - 1];
+
+  // A seta inteira desliza seguindo a ponta, então só importa o caminho à frente da ponta.
+  function blockerOf(grid, a) {
+    const [hx, hy] = headOf(a);
+    for (const [cx, cy] of rayCells(hx, hy, a.dir, grid.length)) {
+      if (grid[cy][cx]) return grid[cy][cx];
     }
     return null;
   }
 
-  // Monta o tabuleiro de trás para frente: cada seta nova é colocada com o caminho livre
-  // em relação às que já estão lá. Remover na ordem inversa sempre funciona, então
-  // toda fase tem solução. Preferir casas que ficam no caminho de setas existentes
+  function shuffle(arr, rng) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Tenta criar uma seta: escolhe a ponta e a direção com caminho livre e
+  // cresce o corpo para trás, em casas vazias, como uma cobrinha.
+  function tryArrow(grid, size, rng, maxLen) {
+    const empties = [];
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!grid[y][x]) empties.push([x, y]);
+    if (empties.length < 2) return null;
+    const [hx, hy] = empties[Math.floor(rng() * empties.length)];
+
+    for (const dir of shuffle([...DIR_KEYS], rng)) {
+      const ray = rayCells(hx, hy, dir, size);
+      if (ray.some(([cx, cy]) => grid[cy][cx])) continue;
+      const { dx, dy } = DIRS[dir];
+      const bx = hx - dx, by = hy - dy;
+      if (bx < 0 || by < 0 || bx >= size || by >= size || grid[by][bx]) continue;
+
+      const banned = new Set(ray.map(([x, y]) => y * size + x));
+      const used = new Set([hy * size + hx, by * size + bx]);
+      const body = [[hx, hy], [bx, by]];
+      // setas curtas são mais comuns; as longas aparecem de vez em quando
+      const len = 2 + Math.floor(rng() ** 2 * (maxLen - 1));
+      let back = { dx: -dx, dy: -dy };
+      while (body.length < len) {
+        const [cx, cy] = body[body.length - 1];
+        const options = DIR_KEYS.map(k => DIRS[k]).filter(d => {
+          const nx = cx + d.dx, ny = cy + d.dy;
+          const key = ny * size + nx;
+          return nx >= 0 && ny >= 0 && nx < size && ny < size && !grid[ny][nx] && !used.has(key) && !banned.has(key);
+        });
+        if (!options.length) break;
+        const straight = options.find(d => d.dx === back.dx && d.dy === back.dy);
+        const step = straight && rng() < 0.55 ? straight : options[Math.floor(rng() * options.length)];
+        const nx = cx + step.dx, ny = cy + step.dy;
+        body.push([nx, ny]);
+        used.add(ny * size + nx);
+        back = step;
+      }
+      return { cells: body.reverse(), dir };
+    }
+    return null;
+  }
+
+  // Monta o tabuleiro de trás para frente: cada seta nova tem o caminho livre em
+  // relação às que já estão lá, então removê-las na ordem inversa sempre funciona
+  // e toda fase tem solução. Preferir setas cujo corpo fica no caminho de outras
   // cria dependências (A só sai depois de B, que só sai depois de C...).
   function generate(level) {
     const rng = mulberry32(level * 7919 + 17);
-    const { size, density, greed } = levelParams(level);
-    const target = Math.max(3, Math.round(size * size * density));
+    const { size, density, maxLen, greed } = levelParams(level);
+    const target = Math.round(size * size * density);
     const grid = Array.from({ length: size }, () => Array(size).fill(null));
-    const placed = [];
+    const rayCount = Array.from({ length: size }, () => Array(size).fill(0));
+    const arrows = [];
+    let filled = 0, failures = 0;
 
-    while (placed.length < target) {
-      const blockCount = Array.from({ length: size }, () => Array(size).fill(0));
-      for (const a of placed) {
-        for (const [cx, cy] of pathCells(a.x, a.y, a.dir, size)) blockCount[cy][cx]++;
-      }
+    while (filled < target && failures < 60) {
       const candidates = [];
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          if (grid[y][x]) continue;
-          for (const dir of DIR_KEYS) {
-            if (!firstBlocker(grid, x, y, dir)) {
-              candidates.push({ x, y, dir, score: blockCount[y][x] });
-            }
-          }
+      for (let i = 0; i < 24; i++) {
+        const c = tryArrow(grid, size, rng, maxLen);
+        if (c) {
+          c.score = c.cells.reduce((s, [x, y]) => s + rayCount[y][x], 0);
+          candidates.push(c);
         }
       }
-      if (!candidates.length) break;
+      if (!candidates.length) { failures++; continue; }
 
       let pool = candidates;
       if (rng() < greed) {
@@ -301,65 +333,75 @@
         pool = candidates.filter(c => c.score === best);
       }
       const pick = pool[Math.floor(rng() * pool.length)];
-      const arrow = { id: placed.length, x: pick.x, y: pick.y, dir: pick.dir };
-      grid[pick.y][pick.x] = arrow;
-      placed.push(arrow);
+      const arrow = { id: arrows.length, cells: pick.cells, dir: pick.dir };
+      for (const [x, y] of arrow.cells) grid[y][x] = arrow;
+      const [hx, hy] = headOf(arrow);
+      for (const [x, y] of rayCells(hx, hy, arrow.dir, size)) rayCount[y][x]++;
+      arrows.push(arrow);
+      filled += arrow.cells.length;
     }
-    return { size, grid, count: placed.length };
+    return { size, grid, arrows };
   }
 
   // ---------- Estado e interface ----------
   const $ = id => document.getElementById(id);
   const boardEl = $('board');
-  const state = { level: 1, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid: null, size: 0, remaining: 0, busy: false, over: false };
-  let cellEls = [];
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const state = { level: 1, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid: null, size: 0, remaining: 0, over: false };
+  const arrowEls = new Map();
 
-  function loadBest() {
-    try { return parseInt(localStorage.getItem('arrows-best') || '1', 10) || 1; } catch { return 1; }
+  function loadNum(key) {
+    try { return parseInt(localStorage.getItem(key) || '1', 10) || 1; } catch { return 1; }
   }
-  function saveBest(level) {
-    try { if (level > loadBest()) localStorage.setItem('arrows-best', String(level)); } catch {}
+  function saveNum(key, value) {
+    try { localStorage.setItem(key, String(value)); } catch {}
   }
-  function loadLevel() {
-    try { return parseInt(localStorage.getItem('arrows-level') || '1', 10) || 1; } catch { return 1; }
-  }
-  function saveLevel(level) {
-    try { localStorage.setItem('arrows-level', String(level)); } catch {}
-  }
+  const loadBest = () => loadNum('arrows-best');
 
   function startLevel(level) {
-    const { size, grid, count } = generate(level);
-    Object.assign(state, { level, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid, size, remaining: count, busy: false, over: false });
-    saveLevel(level);
+    const { size, grid, arrows } = generate(level);
+    Object.assign(state, { level, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid, size, remaining: arrows.length, over: false });
+    saveNum('arrows-level', level);
     hideOverlay();
-    render();
+    render(arrows);
   }
 
-  function render() {
-    const { size, grid } = state;
-    boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
-    boardEl.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+  const center = v => v * CELL + CELL / 2;
+  const svgEl = (tag, attrs) => {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  };
+
+  // Ponta da seta: triângulo desenhado apontando para cima e girado.
+  const HEAD_POINTS = '0,-34 27,8 -27,8';
+  const ROT = { up: 0, right: 90, down: 180, left: 270 };
+
+  function render(arrows) {
+    const { size } = state;
+    const pad = CELL * 0.1;
+    boardEl.setAttribute('viewBox', `${-pad} ${-pad} ${size * CELL + 2 * pad} ${size * CELL + 2 * pad}`);
     boardEl.innerHTML = '';
-    cellEls = [];
-    for (let y = 0; y < size; y++) {
-      const row = [];
-      for (let x = 0; x < size; x++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        const a = grid[y][x];
-        if (a) {
-          const btn = document.createElement('button');
-          btn.className = 'arrow';
-          btn.setAttribute('aria-label', `Seta para ${{ up: 'cima', right: 'a direita', down: 'baixo', left: 'a esquerda' }[a.dir]}`);
-          btn.innerHTML = ARROW_SVG;
-          btn.firstChild.style.transform = `rotate(${DIRS[a.dir].rot}deg)`;
-          btn.addEventListener('click', () => tap(x, y, btn));
-          cell.appendChild(btn);
-        }
-        boardEl.appendChild(cell);
-        row.push(cell);
-      }
-      cellEls.push(row);
+    arrowEls.clear();
+
+    const dots = svgEl('g', {});
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      dots.appendChild(svgEl('circle', { class: 'dot', cx: center(x), cy: center(y), r: 5 }));
+    }
+    boardEl.appendChild(dots);
+
+    for (const a of arrows) {
+      const pts = a.cells.map(([x, y]) => `${center(x)},${center(y)}`).join(' ');
+      const [hx, hy] = headOf(a);
+      const g = svgEl('g', { class: 'arrow', tabindex: 0, role: 'button', 'aria-label': `Seta de ${a.cells.length} casas apontando para ${DIR_NAMES[a.dir]}` });
+      const line = svgEl('polyline', { class: 'line', points: pts });
+      const head = svgEl('polygon', { class: 'head', points: HEAD_POINTS, transform: `translate(${center(hx)} ${center(hy)}) rotate(${ROT[a.dir]})` });
+      const hit = svgEl('polyline', { class: 'hit', points: pts });
+      g.append(line, head, hit);
+      g.addEventListener('click', () => tap(a));
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(a); } });
+      boardEl.appendChild(g);
+      arrowEls.set(a, { g, line, head });
     }
     updateHud();
   }
@@ -375,21 +417,21 @@
     hb.disabled = state.hints <= 0 || state.over;
   }
 
-  function tap(x, y, btn) {
-    if (state.over) return;
-    const a = state.grid[y][x];
-    if (!a) return;
-    const blocker = firstBlocker(state.grid, x, y, a.dir);
+  function restartAnim(el, cls) {
+    el.classList.remove(cls);
+    void el.getBoundingClientRect();
+    el.classList.add(cls);
+  }
+
+  function tap(a) {
+    if (state.over || !arrowEls.has(a)) return;
+    const els = arrowEls.get(a);
+    const blocker = blockerOf(state.grid, a);
 
     if (blocker) {
       state.lives--;
-      btn.classList.remove('shake');
-      void btn.offsetWidth;
-      btn.classList.add('shake');
-      const bCell = cellEls[blocker[1]][blocker[0]];
-      bCell.classList.remove('blocker');
-      void bCell.offsetWidth;
-      bCell.classList.add('blocker');
+      restartAnim(els.g, 'shake');
+      restartAnim(arrowEls.get(blocker).g, 'blocker');
       if (navigator.vibrate) navigator.vibrate(80);
       updateHud();
       if (state.lives <= 0) {
@@ -400,39 +442,55 @@
       return;
     }
 
-    // Seta livre: sai voando na direção em que aponta.
-    state.grid[y][x] = null;
+    for (const [x, y] of a.cells) state.grid[y][x] = null;
+    arrowEls.delete(a);
     state.remaining--;
     document.querySelectorAll('.arrow.hint').forEach(el => el.classList.remove('hint'));
-    const { dx, dy } = DIRS[a.dir];
-    const dist = boardEl.clientWidth;
-    btn.classList.add('flying');
-    btn.style.transform = `translate(${dx * dist}px, ${dy * dist}px)`;
-    setTimeout(() => btn.remove(), 420);
+    flyAway(a, els);
     updateHud();
 
     if (state.remaining === 0) {
       state.over = true;
-      saveBest(state.level + 1);
-      saveLevel(state.level + 1);
+      saveNum('arrows-best', Math.max(loadBest(), state.level + 1));
+      saveNum('arrows-level', state.level + 1);
       updateHud();
-      setTimeout(() => showOverlay('Fase concluída!', `Você limpou a fase ${state.level}.`, 'Próxima fase', () => startLevel(state.level + 1)), 450);
+      setTimeout(() => showOverlay('Fase concluída!', `Você limpou a fase ${state.level}.`, 'Próxima fase', () => startLevel(state.level + 1)), 650);
     }
+  }
+
+  // A seta desliza pelo próprio traçado: o corpo segue a ponta até sair do tabuleiro.
+  function flyAway(a, { g, line, head }) {
+    g.classList.add('flying');
+    if (reduceMotion) { g.remove(); return; }
+    const { dx, dy } = DIRS[a.dir];
+    const [hx, hy] = headOf(a);
+    const bodyLen = (a.cells.length - 1) * CELL;
+    const travel = bodyLen + (state.size + 1) * CELL;
+    const pts = a.cells.map(([x, y]) => `${center(x)},${center(y)}`);
+    pts.push(`${center(hx) + dx * travel},${center(hy) + dy * travel}`);
+    line.setAttribute('points', pts.join(' '));
+    line.setAttribute('stroke-dasharray', `${bodyLen} ${travel * 2}`);
+
+    const duration = Math.min(300 + a.cells.length * 40, 650);
+    const t0 = performance.now();
+    const step = now => {
+      const t = Math.min((now - t0) / duration, 1);
+      const s = travel * t * t; // acelera ao sair
+      line.setAttribute('stroke-dashoffset', -s);
+      head.setAttribute('transform', `translate(${center(hx) + dx * s} ${center(hy) + dy * s}) rotate(${ROT[a.dir]})`);
+      if (t < 1) requestAnimationFrame(step); else g.remove();
+    };
+    requestAnimationFrame(step);
   }
 
   function useHint() {
     if (state.hints <= 0 || state.over) return;
-    const { grid, size } = state;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const a = grid[y][x];
-        if (a && !firstBlocker(grid, x, y, a.dir)) {
-          state.hints--;
-          const btn = cellEls[y][x].querySelector('.arrow');
-          if (btn) btn.classList.add('hint');
-          updateHud();
-          return;
-        }
+    for (const [a, els] of arrowEls) {
+      if (!blockerOf(state.grid, a)) {
+        state.hints--;
+        els.g.classList.add('hint');
+        updateHud();
+        return;
       }
     }
   }
@@ -451,9 +509,9 @@
   $('restart-btn').addEventListener('click', () => startLevel(state.level));
 
   // Exposto para testes.
-  window.ArrowsGame = { generate, firstBlocker, levelParams };
+  window.ArrowsGame = { generate, blockerOf, levelParams };
 
-  startLevel(loadLevel());
+  startLevel(loadNum('arrows-level'));
 })();
 </script>
 </body>
