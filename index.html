@@ -29,6 +29,8 @@
     --lock-1: #b0329b;
     --lock-2: #1f8a9e;
     --lock-3: #c27c00;
+    --door-1: #a3700a;
+    --door-2: #0f8b8d;
     --fog: #c9d3da;
     --shadow: 0 2px 12px rgba(24,35,44,.10);
     --font-display: "Bungee", "Arial Black", Impact, sans-serif;
@@ -55,6 +57,8 @@
       --lock-1: #e070cf;
       --lock-2: #4fc6da;
       --lock-3: #ffbf3f;
+      --door-1: #ffcf4a;
+      --door-2: #4fd6d8;
       --fog: #2c3943;
       --shadow: 0 2px 12px rgba(0,0,0,.45);
       color-scheme: dark;
@@ -80,6 +84,8 @@
     --lock-1: #e070cf;
     --lock-2: #4fc6da;
     --lock-3: #ffbf3f;
+    --door-1: #ffcf4a;
+    --door-2: #4fd6d8;
     --fog: #2c3943;
     --shadow: 0 2px 12px rgba(0,0,0,.45);
     color-scheme: dark;
@@ -110,6 +116,8 @@
     --lock-1: #ff4fd8;
     --lock-2: #00e5ff;
     --lock-3: #ffd400;
+    --door-1: #ffd400;
+    --door-2: #00e5ff;
     --fog: #3d3d3d;
     --shadow: 0 0 0 2px #ffffff;
     color-scheme: dark;
@@ -210,6 +218,12 @@
   .portal { fill: none; stroke-width: 8; }
   .portal-core { opacity: .35; }
   .closed-side { fill: var(--wall); }
+  .wall.trail { animation: rise .35s ease; }
+  .door-frame { fill: none; stroke: currentColor; stroke-width: 7; stroke-dasharray: 12 9; }
+  .door-bars { stroke: var(--surface); stroke-width: 6; stroke-linecap: round; display: none; }
+  .door.closed .door-frame { fill: currentColor; stroke-dasharray: none; }
+  .door.closed .door-bars { display: inline; }
+  .stars { color: var(--hint); letter-spacing: 4px; font-size: 1.6rem; }
   .flash { animation: flash .6s ease; }
   .fog-cell { fill: var(--fog); transition: opacity .35s ease; }
   .fog-cell.clear { opacity: 0; pointer-events: none; }
@@ -261,6 +275,10 @@
   @keyframes blink {
     0%,100% { color: inherit; }
     40% { color: var(--danger); }
+  }
+  @keyframes rise {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   @keyframes flash {
     0%,100% { opacity: 1; }
@@ -374,6 +392,7 @@
     <div><div class="label">Vidas</div><div class="value lives" id="lives"></div></div>
     <div id="taps-box" hidden><div class="label">Toques</div><div class="value" id="taps">0</div></div>
     <div><div class="label">Recorde</div><div class="value" id="best">1</div></div>
+    <div><div class="label">Estrelas</div><div class="value" id="stars-total">0</div></div>
   </div>
 
   <div class="board-wrap">
@@ -436,21 +455,25 @@
   const MECHANICS = [
     { id: 'hole',    level: 3,  name: 'Buraco',              desc: 'Casa vazia no meio do tabuleiro. As setas passam por ela normalmente.' },
     { id: 'wall',    level: 5,  name: 'Parede',              desc: 'Bloco fixo que nunca sai. Uma seta que aponta para a parede não consegue sair por esse lado.' },
-    { id: 'closed',  level: 7,  name: 'Borda fechada',       desc: 'O lado com a barra está fechado: nenhuma seta sai por ali.' },
-    { id: 'number',  level: 9,  name: 'Setas numeradas',     desc: 'As setas com número saem em ordem: primeiro a 1, depois a 2, e assim por diante.' },
-    { id: 'counter', level: 11, name: 'Seta teimosa',        desc: 'Precisa ser tocada várias vezes. O número mostra quantos toques faltam.' },
-    { id: 'lock',    level: 13, name: 'Cadeado e chave',     desc: 'A seta com cadeado só sai depois que a seta com a chave da mesma cor sair.' },
-    { id: 'double',  level: 15, name: 'Seta de duas pontas', desc: 'Pode sair pelos dois lados. Toque perto da ponta pela qual você quer que ela saia.' },
-    { id: 'frozen',  level: 17, name: 'Seta congelada',      desc: 'Só descongela quando nenhuma outra seta estiver encostada nela.' },
-    { id: 'group',   level: 19, name: 'Grupos de cores',     desc: 'Todas as setas laranja precisam sair antes de qualquer seta verde.' },
-    { id: 'bomb',    level: 21, name: 'Bomba-relógio',       desc: 'O número diminui a cada jogada. Tire a seta antes que ele chegue a zero, senão ela explode.' },
-    { id: 'limit',   level: 23, name: 'Limite de toques',    desc: 'Você tem um número máximo de toques, e os erros também contam.' },
-    { id: 'portal',  level: 25, name: 'Portal',              desc: 'A seta que entra num portal sai pelo outro da mesma cor, na mesma direção. O caminho depois dele também precisa estar livre.' },
-    { id: 'hidden',  level: 27, name: 'Ponta escondida',     desc: 'Algumas setas não mostram para onde apontam. A ponta aparece quando a casa à frente dela fica vazia.' },
-    { id: 'spinner', level: 29, name: 'Seta giratória',      desc: 'Gira um quarto de volta a cada jogada. Toque quando ela estiver apontando para um caminho livre.' },
-    { id: 'ghost',   level: 31, name: 'Seta fantasma',       desc: 'Aparece e some a cada jogada. Apagada, ela não bloqueia ninguém, mas também não pode ser tocada.' },
-    { id: 'fog',     level: 33, name: 'Neblina',             desc: 'Você só enxerga as bordas e o que fica perto das setas que já saíram.' },
+    { id: 'trail',   level: 7,  name: 'Rastro',              desc: 'Quando sai, a seta deixa uma parede na casa logo à frente da ponta. Antes de tirá-la, veja se outra seta ainda precisa passar por ali.' },
+    { id: 'closed',  level: 9,  name: 'Borda fechada',       desc: 'O lado com a barra está fechado: nenhuma seta sai por ali.' },
+    { id: 'number',  level: 11, name: 'Setas numeradas',     desc: 'As setas com número saem em ordem: primeiro a 1, depois a 2, e assim por diante.' },
+    { id: 'door',    level: 13, name: 'Interruptor e porta', desc: 'A seta com interruptor abre ou fecha as portas da mesma cor quando sai. Porta fechada bloqueia como parede.' },
+    { id: 'counter', level: 15, name: 'Seta teimosa',        desc: 'Precisa ser tocada várias vezes. O número mostra quantos toques faltam.' },
+    { id: 'lock',    level: 17, name: 'Cadeado e chave',     desc: 'A seta com cadeado só sai depois que a seta com a chave da mesma cor sair.' },
+    { id: 'double',  level: 19, name: 'Seta de duas pontas', desc: 'Pode sair pelos dois lados. Toque perto da ponta pela qual você quer que ela saia.' },
+    { id: 'frozen',  level: 21, name: 'Seta congelada',      desc: 'Só descongela quando nenhuma outra seta estiver encostada nela.' },
+    { id: 'group',   level: 23, name: 'Grupos de cores',     desc: 'Todas as setas laranja precisam sair antes de qualquer seta verde.' },
+    { id: 'bomb',    level: 25, name: 'Bomba-relógio',       desc: 'O número diminui a cada jogada. Tire a seta antes que ele chegue a zero, senão ela explode.' },
+    { id: 'limit',   level: 27, name: 'Limite de toques',    desc: 'Você tem um número máximo de toques, e os erros também contam.' },
+    { id: 'portal',  level: 29, name: 'Portal',              desc: 'A seta que entra num portal sai pelo outro da mesma cor, na mesma direção. O caminho depois dele também precisa estar livre.' },
+    { id: 'hidden',  level: 31, name: 'Ponta escondida',     desc: 'Algumas setas não mostram para onde apontam. A ponta aparece quando a casa à frente dela fica vazia.' },
+    { id: 'spinner', level: 33, name: 'Seta giratória',      desc: 'Gira um quarto de volta a cada jogada. Toque quando ela estiver apontando para um caminho livre.' },
+    { id: 'ghost',   level: 35, name: 'Seta fantasma',       desc: 'Aparece e some a cada jogada. Apagada, ela não bloqueia ninguém, mas também não pode ser tocada.' },
+    { id: 'fog',     level: 37, name: 'Neblina',             desc: 'Você só enxerga as bordas e o que fica perto das setas que já saíram.' },
   ];
+  // empecilhos em que tirar a seta na hora errada pode deixar a fase sem solução
+  const TRAP_MECHS = ['trail', 'door', 'spinner', 'ghost', 'bomb', 'limit'];
   const MECH_BY_ID = Object.fromEntries(MECHANICS.map(m => [m.id, m]));
 
   // Gerador pseudoaleatório com semente: a mesma fase sempre gera o mesmo tabuleiro.
@@ -485,10 +508,16 @@
       maxLen = Math.min(maxLen, 7);
     } else {
       const known = MECHANICS.filter(m => m.level < level).map(m => m.id);
-      const k = Math.min(known.length, 1 + Math.floor(rng() * 3));
-      mechs = shuffle(known, rng).slice(0, k);
-      // na neblina, buracos e portais esconderiam a única saída visível
-      if (mechs.includes('fog')) mechs = mechs.filter(m => m !== 'hole' && m !== 'portal');
+      // no máximo 2 empecilhos por fase, e na maioria das vezes só 1
+      const k = Math.min(known.length, rng() < 0.6 ? 1 : 2);
+      mechs = shuffle([...known], rng).slice(0, k);
+      // rastro e interruptor são os que mais fazem pensar na ordem: aparecem com frequência
+      const thinking = known.filter(m => m === 'trail' || m === 'door');
+      if (thinking.length && !mechs.some(m => thinking.includes(m)) && rng() < 0.5) {
+        mechs[0] = thinking[Math.floor(rng() * thinking.length)];
+      }
+      // na neblina, buracos, portais e portas esconderiam a única saída visível
+      if (mechs.includes('fog')) mechs = mechs.filter(m => !['hole', 'portal', 'door'].includes(m));
     }
     return {
       size,
@@ -500,23 +529,30 @@
     };
   }
 
-  // Caminho que a ponta percorre até sair: atravessa buracos, pula portais, para em paredes.
-  // `cells` são as casas que precisam estar sem setas; `end` diz como o caminho termina.
-  function route(lv, x, y, dir) {
+  // Caminho que a ponta percorre até sair: atravessa buracos e portas abertas, pula portais,
+  // para em paredes e portas fechadas. `cells` são as casas que precisam estar sem setas;
+  // `end` diz como o caminho termina; `doors` são as cores das portas atravessadas.
+  // `board` é a fase (portas sempre abertas) ou o estado de uma partida.
+  function route(board, x, y, dir) {
     const { dx, dy } = DIRS[dir];
     const cells = [];
     const seen = new Set();
     const jumps = [];
+    const doors = [];
     let cx = x + dx, cy = y + dy;
     for (;;) {
-      if (cx < 0 || cy < 0 || cx >= lv.size || cy >= lv.size) {
-        return { cells, end: lv.closed.includes(dir) ? 'edge' : 'out', side: dir, jumps };
+      if (cx < 0 || cy < 0 || cx >= board.size || cy >= board.size) {
+        return { cells, end: board.closed.includes(dir) ? 'edge' : 'out', side: dir, jumps, doors };
       }
-      const sp = lv.special[cy][cx];
-      if (sp && sp.type === 'wall') return { cells, end: 'wall', at: [cx, cy], jumps };
+      const sp = board.special[cy][cx];
+      if (sp && sp.type === 'wall') return { cells, end: 'wall', at: [cx, cy], jumps, doors };
+      if (sp && sp.type === 'door') {
+        if (board.doorOpen && !board.doorOpen[sp.color]) return { cells, end: 'door', at: [cx, cy], color: sp.color, jumps, doors };
+        doors.push(sp.color);
+      }
       if (sp && sp.type === 'portal') {
-        const key = cy * lv.size + cx;
-        if (seen.has(key)) return { cells, end: 'loop', jumps };
+        const key = cy * board.size + cx;
+        if (seen.has(key)) return { cells, end: 'loop', jumps, doors };
         seen.add(key);
         jumps.push({ from: [cx, cy], to: sp.pair });
         [cx, cy] = sp.pair;
@@ -538,6 +574,10 @@
       moves: 0, taps: 0, lives: MAX_LIVES,
       won: false, lost: null,
       revealed: new Set(),
+      // cópia das casas especiais: o rastro cria paredes durante a partida
+      special: lv.special.map(row => row.slice()),
+      closed: lv.closed,
+      doorOpen: (lv.doors || []).map(d => d.open),
     };
     for (const d of lv.arrows) {
       const a = { ...d, solid: d.ghost ? d.solid0 : true, counterLeft: d.counter || 1, bombLeft: d.bomb || null, shown: false, turns: 0, startRot: DIRS[d.dir].rot };
@@ -598,12 +638,12 @@
     }
     const o = orientationOf(a, end);
     const [hx, hy] = o.cells[o.cells.length - 1];
-    const r = route(st.lv, hx, hy, o.dir);
+    const r = route(st, hx, hy, o.dir);
     for (const [x, y] of r.cells) {
       const b = st.grid[y][x];
       if (b && isSolid(b)) return { type: 'arrow', arrow: b };
     }
-    if (r.end !== 'out') return { type: r.end, at: r.at, side: r.side };
+    if (r.end !== 'out') return { type: r.end, at: r.at, side: r.side, color: r.color };
     return null;
   }
 
@@ -623,9 +663,25 @@
       const [hx, hy] = a.cells[a.cells.length - 1];
       const nx = hx + DIRS[a.dir].dx, ny = hy + DIRS[a.dir].dy;
       if (nx < 0 || ny < 0 || nx >= st.size || ny >= st.size) { a.shown = true; continue; }
-      const sp = st.lv.special[ny][nx];
-      if (!st.grid[ny][nx] && !(sp && sp.type === 'wall')) a.shown = true;
+      const sp = st.special[ny][nx];
+      const blocks = sp && (sp.type === 'wall' || (sp.type === 'door' && !st.doorOpen[sp.color]));
+      if (!st.grid[ny][nx] && !blocks) a.shown = true;
     }
+  }
+
+  // Cópia independente de uma partida, para testar jogadas sem mexer na original.
+  function cloneState(st) {
+    const map = new Map();
+    const c = {
+      ...st,
+      arrows: st.arrows.map(a => { const b = { ...a }; map.set(a, b); return b; }),
+      special: st.special.map(row => row.slice()),
+      doorOpen: st.doorOpen.slice(),
+      revealed: new Set(st.revealed),
+    };
+    c.alive = new Set([...st.alive].map(a => map.get(a)));
+    c.grid = st.grid.map(row => row.map(a => a && map.get(a)));
+    return c;
   }
 
   // Um toque numa seta. Devolve o que aconteceu para a interface animar.
@@ -648,8 +704,20 @@
       const [hx, hy] = o.cells[o.cells.length - 1];
       result.removed = true;
       result.orientation = o;
-      result.route = route(st.lv, hx, hy, o.dir);
+      result.route = route(st, hx, hy, o.dir);
       st.alive.delete(a);
+      // rastro: parede na casa logo à frente da ponta
+      if (a.trail) {
+        const fx = hx + DIRS[o.dir].dx, fy = hy + DIRS[o.dir].dy;
+        if (fx >= 0 && fy >= 0 && fx < st.size && fy < st.size && !st.special[fy][fx]) {
+          st.special[fy][fx] = { type: 'wall', trail: true };
+          result.trailAt = [fx, fy];
+        }
+      }
+      if (a.switch != null) {
+        st.doorOpen[a.switch] = !st.doorOpen[a.switch];
+        result.toggled = a.switch;
+      }
       for (const [x, y] of a.cells) {
         st.grid[y][x] = null;
         if (st.lv.fog) {
@@ -713,8 +781,20 @@
       }
     }
     if (has('spinner')) for (let i = amount(0.07, 0.04); i > 0; i--) spinners.push(pool.pop());
+    // portas: 2 ou 3 casas de cada cor, longe da borda, para ficarem no caminho de várias setas
+    const doors = [];
+    if (has('door')) {
+      for (let c = 0; c < (intro ? 2 : 1); c++) {
+        doors.push({ open: true });
+        for (let i = 2 + Math.floor(rng() * 2); i > 0; i--) {
+          const k = pool.findIndex(([x, y]) => x > 0 && y > 0 && x < size - 1 && y < size - 1);
+          const [x, y] = k >= 0 ? pool.splice(k, 1)[0] : pool.pop();
+          special[y][x] = { type: 'door', color: c };
+        }
+      }
+    }
     const closed = has('closed') ? shuffle([...DIR_KEYS], rng).slice(0, intro || rng() < 0.7 ? 1 : 2) : [];
-    return { special, spinners, closed };
+    return { special, spinners, closed, doors };
   }
 
   // Divide as casas livres do tabuleiro em caminhos (o corpo das setas), sem sobrar nenhuma.
@@ -843,6 +923,61 @@
     if (has('ghost')) pick(count(3, 2)).forEach(a => { a.ghost = true; });
     if (has('counter')) pick(count(3, 2)).forEach(a => { a.counter = 2 + Math.floor(rng() * 2); });
 
+    // Caminho de cada seta (portas abertas) e o momento em que ela fica livre na solução:
+    // depois que saírem todas as setas que estão no caminho dela.
+    const occ = Array.from({ length: lv.size }, () => Array(lv.size).fill(null));
+    arrows.forEach(a => a.cells.forEach(([x, y]) => { occ[y][x] = a; }));
+    const routes = arrows.map(a => {
+      const [hx, hy] = a.cells[a.cells.length - 1];
+      return route(lv, hx, hy, a.dir);
+    });
+    const freeAt = arrows.map((a, i) => Math.max(0, ...routes[i].cells.map(([x, y]) => occ[y][x] ? occ[y][x].index + 1 : 0)));
+    const plain = a => !a.deco && !a.spinner;
+
+    // Rastro: a parede nasce numa casa que outras setas ainda usam. A armadilha é boa
+    // quando a seta com rastro fica livre bem antes da última seta que passa por ali.
+    if (has('trail')) {
+      const options = [];
+      for (const a of arrows) {
+        if (!plain(a)) continue;
+        const [hx, hy] = a.cells[a.cells.length - 1];
+        const fx = hx + DIRS[a.dir].dx, fy = hy + DIRS[a.dir].dy;
+        if (fx < 0 || fy < 0 || fx >= lv.size || fy >= lv.size || lv.special[fy][fx]) continue;
+        const users = arrows.filter((b, j) => b !== a && routes[j].cells.some(([x, y]) => x === fx && y === fy));
+        if (users.some(b => b.index > a.index || b.spinner)) continue;
+        const last = Math.max(-1, ...users.map(b => b.index));
+        options.push({ a, gap: last - freeAt[a.index] + rng() });
+      }
+      options.sort((p, q) => q.gap - p.gap);
+      options.slice(0, count(3, 2)).forEach(({ a }) => { a.trail = true; a.deco = true; });
+    }
+
+    // Interruptor: fecha a porta depois que todas as setas que passam por ela saíram
+    // (armadilha: tirar o interruptor cedo tranca essas setas), ou abre a porta antes
+    // de todas elas.
+    if (has('door')) {
+      for (let c = 0; c < lv.doors.length; c++) {
+        const users = arrows.filter((b, j) => routes[j].doors.includes(c));
+        const lastUser = Math.max(-1, ...users.map(b => b.index));
+        const firstUser = Math.min(arrows.length, ...users.map(b => b.index));
+        const closers = arrows.filter(b => plain(b) && b.index > lastUser && !users.includes(b));
+        const openers = arrows.filter(b => plain(b) && b.index < firstUser && !users.includes(b));
+        const preferOpen = c === 1 && openers.length && users.length;
+        if (closers.length && users.length && !preferOpen) {
+          closers.sort((p, q) => (freeAt[p.index] - freeAt[q.index]) || (rng() - 0.5));
+          const sw = closers[0];
+          sw.switch = c; sw.deco = true;
+          lv.doors[c].open = true;
+        } else if (openers.length) {
+          const sw = openers[Math.floor(rng() * openers.length)];
+          sw.switch = c; sw.deco = true;
+          lv.doors[c].open = false;
+        } else {
+          return false;
+        }
+      }
+    }
+
     // número de jogadas feitas antes de cada seta sair, seguindo a solução
     let j = 0;
     for (const a of arrows) { a.J = j; j += a.counter || 1; }
@@ -887,6 +1022,7 @@
     if (has('hidden')) pick(count(4, 3)).forEach(a => { a.hidden = true; });
     if (has('limit')) lv.limit = total + (plan.intro ? 4 : 2 + Math.floor(rng() * 2));
     if (has('fog')) lv.fog = true;
+    return true;
   }
 
   // Joga a solução com as regras de verdade para garantir que a fase pode ser vencida.
@@ -979,10 +1115,10 @@
 
   function buildLevel(plan, rng) {
     const { size, maxLen, greed } = plan;
-    const { special, spinners, closed } = placeSpecials(plan, rng);
+    const { special, spinners, closed, doors } = placeSpecials(plan, rng);
     const blocked = special.map(row => row.map(s => !!s));
     spinners.forEach(([x, y]) => { blocked[y][x] = true; });
-    const lv = { size, special, closed, limit: null, fog: false, plan };
+    const lv = { size, special, closed, doors, limit: null, fog: false, plan };
     const parts = partition(size, rng, maxLen, blocked);
     const paths = parts && fixDeadPaths(lv, parts, rng);
     if (!paths) return null;
@@ -990,22 +1126,47 @@
     const order = orient(lv, all, rng, greed);
     if (!order) return null;
     lv.arrows = order.map((o, i) => ({ id: i, index: i, cells: o.cells, dir: o.dir, spinner: o.spinner }));
-    decorate(lv, plan, rng);
+    if (!decorate(lv, plan, rng)) return null;
     return validate(lv) ? lv : null;
   }
 
-  // Gera vários tabuleiros válidos para a fase e, nas mais avançadas,
-  // fica com o que tem a cadeia de dependência mais longa.
+  // Joga várias partidas tocando em setas livres ao acaso e conta quantas acabam sem
+  // saída: quanto maior, mais a fase pune quem joga sem pensar na ordem.
+  function trapRate(lv, rng, runs) {
+    let dead = 0;
+    for (let r = 0; r < runs; r++) {
+      const st = createState(lv);
+      while (!st.won && !st.lost) {
+        const moves = [];
+        for (const a of st.alive) {
+          if (!isSolid(a)) continue;
+          if (!check(st, a, 0)) moves.push([a, 0]);
+          if (a.double && !check(st, a, 1)) moves.push([a, 1]);
+        }
+        if (!moves.length) break;
+        const [a, end] = moves[Math.floor(rng() * moves.length)];
+        tap(st, a, end);
+      }
+      if (!st.won) dead++;
+    }
+    return dead / runs;
+  }
+
+  // Gera vários tabuleiros válidos para a fase e, nas mais avançadas, fica com o que
+  // tem mais armadilhas e a cadeia de dependência mais longa.
   function generate(level) {
     const plan = levelPlan(level);
     const rng = mulberry32(level * 7919 + 17);
+    const traps = plan.mechs.some(m => TRAP_MECHS.includes(m));
     let best = null, found = 0;
     for (let tries = 0; tries < 300 && found < 8; tries++) {
       const lv = buildLevel(plan, rng);
       if (!lv) continue;
       found++;
       const depth = chainDepth(lv);
-      if (!best || (rng() < plan.greed && depth > best.depth)) best = { lv, depth };
+      const trap = traps ? trapRate(lv, rng, 24) : 0;
+      const score = trap * 40 + depth;
+      if (!best || (rng() < plan.greed && score > best.score)) best = { lv, depth, trap, score };
     }
     if (!best) {
       // reserva: fase sem empecilhos, que sempre dá certo
@@ -1017,6 +1178,7 @@
       best.lv.plan = plan;
     }
     best.lv.level = level;
+    best.lv.trap = best.trap || 0;
     return best.lv;
   }
 
@@ -1049,6 +1211,12 @@
     try { localStorage.setItem('arrows-seen-' + id, '1'); } catch {}
   }
   const loadBest = () => loadNum('arrows-best');
+  function loadStars(level) {
+    try { return parseInt(localStorage.getItem('arrows-stars-' + level) || '0', 10) || 0; } catch { return 0; }
+  }
+  function loadTotalStars() {
+    try { return parseInt(localStorage.getItem('arrows-stars-total') || '0', 10) || 0; } catch { return 0; }
+  }
 
   const center = v => v * CELL + CELL / 2;
   const svgEl = (tag, attrs = {}) => {
@@ -1067,10 +1235,10 @@
     toast('');
     render();
     renderLegend();
-    const intro = lv.plan.intro;
-    if (intro && !seen(intro)) {
-      markSeen(intro);
-      showOverlay('Novidade', MECH_BY_ID[intro].name, MECH_BY_ID[intro].desc, 'Jogar', hideOverlay);
+    const fresh = lv.plan.mechs.find(id => !seen(id));
+    if (fresh) {
+      markSeen(fresh);
+      showOverlay('Novidade', MECH_BY_ID[fresh].name, MECH_BY_ID[fresh].desc, 'Jogar', hideOverlay);
     }
   }
 
@@ -1090,22 +1258,12 @@
       ui.sides.set(side, bar);
     }
 
+    ui.cellEls = [];
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const sp = lv.special[y][x];
-      let el;
-      if (!sp) el = svgEl('circle', { class: 'dot', cx: center(x), cy: center(y), r: 5 });
-      else if (sp.type === 'wall') el = svgEl('rect', { class: 'wall', x: x * CELL + 8, y: y * CELL + 8, width: CELL - 16, height: CELL - 16, rx: 14 });
-      else if (sp.type === 'hole') el = svgEl('circle', { class: 'hole', cx: center(x), cy: center(y), r: 30 });
-      else {
-        const color = sp.color ? 'var(--portal-b)' : 'var(--portal-a)';
-        el = svgEl('g', { style: `color: ${color}` });
-        el.append(
-          svgEl('circle', { class: 'portal', cx: center(x), cy: center(y), r: 32, stroke: 'currentColor' }),
-          svgEl('circle', { class: 'portal-core', cx: center(x), cy: center(y), r: 16, fill: 'currentColor' }),
-        );
-      }
+      const el = cellEl(x, y, st.special[y][x]);
       boardEl.appendChild(el);
-      if (sp) ui.specials.set(y * size + x, el);
+      ui.cellEls[y * size + x] = el;
+      if (st.special[y][x]) ui.specials.set(y * size + x, el);
     }
 
     for (const a of st.arrows) if (st.alive.has(a)) buildArrow(a);
@@ -1125,6 +1283,28 @@
     ui.cursor.x = Math.min(ui.cursor.x, size - 1);
     ui.cursor.y = Math.min(ui.cursor.y, size - 1);
     refresh();
+  }
+
+  function cellEl(x, y, sp) {
+    if (!sp) return svgEl('circle', { class: 'dot', cx: center(x), cy: center(y), r: 5 });
+    if (sp.type === 'wall') {
+      return svgEl('rect', { class: sp.trail ? 'wall trail' : 'wall', x: x * CELL + 8, y: y * CELL + 8, width: CELL - 16, height: CELL - 16, rx: 14 });
+    }
+    if (sp.type === 'hole') return svgEl('circle', { class: 'hole', cx: center(x), cy: center(y), r: 30 });
+    if (sp.type === 'door') {
+      const el = svgEl('g', { class: 'door', style: `color: var(--door-${sp.color + 1})` });
+      el.append(
+        svgEl('rect', { class: 'door-frame', x: x * CELL + 12, y: y * CELL + 12, width: CELL - 24, height: CELL - 24, rx: 10 }),
+        svgEl('path', { class: 'door-bars', d: `M ${center(x) - 16} ${y * CELL + 26} V ${y * CELL + 74} M ${center(x)} ${y * CELL + 26} V ${y * CELL + 74} M ${center(x) + 16} ${y * CELL + 26} V ${y * CELL + 74}` }),
+      );
+      return el;
+    }
+    const el = svgEl('g', { style: `color: ${sp.color ? 'var(--portal-b)' : 'var(--portal-a)'}` });
+    el.append(
+      svgEl('circle', { class: 'portal', cx: center(x), cy: center(y), r: 32, stroke: 'currentColor' }),
+      svgEl('circle', { class: 'portal-core', cx: center(x), cy: center(y), r: 16, fill: 'currentColor' }),
+    );
+    return el;
   }
 
   const headScale = () => ui.settings.thick ? 1.3 : 1;
@@ -1200,6 +1380,19 @@
         );
       }
       els.badge = b;
+    } else if (a.trail) {
+      const b = badge(mx, my, '');
+      b.style.color = 'var(--wall)';
+      b.appendChild(svgEl('rect', { class: 'icon-fill', x: -11, y: -11, width: 22, height: 22, rx: 4 }));
+      els.badge = b;
+    } else if (a.switch != null) {
+      const b = badge(mx, my, '');
+      b.style.color = `var(--door-${a.switch + 1})`;
+      b.append(
+        svgEl('rect', { class: 'icon-stroke', x: -15, y: -8, width: 30, height: 16, rx: 8 }),
+        svgEl('circle', { class: 'icon-fill', cx: 6, cy: 0, r: 5 }),
+      );
+      els.badge = b;
     } else if (a.frozen) {
       const b = badge(mx, my, '');
       b.style.color = 'var(--ice)';
@@ -1266,6 +1459,10 @@
     if (st.lv.fog) {
       ui.fog.forEach((r, i) => r.classList.toggle('clear', st.revealed.has(i)));
     }
+    for (const [key, el] of ui.specials) {
+      const sp = st.special[Math.floor(key / st.size)][key % st.size];
+      if (sp.type === 'door') el.classList.toggle('closed', !st.doorOpen[sp.color]);
+    }
     updateCursor(false);
     updateHud();
   }
@@ -1275,6 +1472,7 @@
     $('level').textContent = ui.level;
     $('remaining').textContent = st.alive.size;
     $('best').textContent = Math.max(loadBest(), ui.level);
+    $('stars-total').textContent = `★ ${loadTotalStars()}`;
     $('lives').innerHTML = Array.from({ length: MAX_LIVES }, (_, i) =>
       `<span class="${i < st.lives ? '' : 'lost'}">♥</span>`).join('');
     const limit = st.lv.limit;
@@ -1328,6 +1526,7 @@
       case 'wall': return 'Tem uma parede no caminho.';
       case 'edge': return 'Esse lado do tabuleiro está fechado.';
       case 'loop': return 'Os portais fazem essa seta andar em círculos.';
+      case 'door': return 'A porta dessa cor está fechada.';
       case 'lock': return 'Trancada: tire primeiro a seta com a chave da mesma cor.';
       case 'frozen': return 'Congelada: tire primeiro as setas encostadas nela.';
       case 'order': return `Fora de ordem: tire a seta ${reason.arrow.number} antes.`;
@@ -1339,7 +1538,7 @@
 
   function flashReason(reason) {
     if (reason.arrow && ui.els.has(reason.arrow)) restartAnim(ui.els.get(reason.arrow).g, 'blocker');
-    if (reason.type === 'wall') {
+    if (reason.type === 'wall' || reason.type === 'door') {
       const el = ui.specials.get(reason.at[1] * ui.st.size + reason.at[0]);
       if (el) restartAnim(el, 'flash');
     }
@@ -1366,6 +1565,20 @@
       toast('');
       ui.els.delete(a);
       flyAway(a, els, res);
+      if (res.trailAt) {
+        const [x, y] = res.trailAt;
+        const key = y * ui.st.size + x;
+        const wall = cellEl(x, y, ui.st.special[y][x]);
+        ui.cellEls[key].replaceWith(wall);
+        ui.cellEls[key] = wall;
+        ui.specials.set(key, wall);
+      }
+      if (res.toggled != null) {
+        for (const [key, el] of ui.specials) {
+          const sp = ui.st.special[Math.floor(key / ui.st.size)][key % ui.st.size];
+          if (sp.type === 'door' && sp.color === res.toggled) restartAnim(el, 'flash');
+        }
+      }
     } else {
       const { dx, dy } = DIRS[a.dir];
       els.g.style.setProperty('--nx', `${dx * 22}px`);
@@ -1383,8 +1596,24 @@
     if (st.won) {
       saveNum('arrows-best', Math.max(loadBest(), level + 1));
       saveNum('arrows-level', level + 1);
+      // 3 estrelas sem erros, 2 com um erro, 1 com mais
+      const errors = MAX_LIVES - st.lives;
+      const stars = errors === 0 ? 3 : errors === 1 ? 2 : 1;
+      const before = loadStars(level);
+      if (stars > before) {
+        saveNum('arrows-stars-' + level, stars);
+        saveNum('arrows-stars-total', loadTotalStars() + stars - before);
+      }
       updateHud();
-      setTimeout(() => showOverlay('', 'Fase concluída!', `Você limpou a fase ${level}.`, 'Próxima fase', () => startLevel(level + 1)), 650);
+      const text = errors === 0 ? 'Sem nenhum erro!' : `${errors} ${errors === 1 ? 'erro' : 'erros'}. Sem errar, você ganha 3 estrelas.`;
+      setTimeout(() => {
+        showOverlay('', 'Fase concluída!', text, 'Próxima fase', () => startLevel(level + 1));
+        const el = $('overlay-eyebrow');
+        el.hidden = false;
+        el.className = 'eyebrow stars';
+        el.textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+        el.setAttribute('aria-label', `${stars} de 3 estrelas`);
+      }, 650);
       return;
     }
     if (!st.lost) return;
@@ -1477,18 +1706,47 @@
   }
 
   // Dica: a próxima seta da solução que pode sair agora (ou qualquer uma que possa).
+  // Termina a partida seguindo a ordem da solução; diz se dá para vencer assim.
+  function solvesInOrder(s) {
+    for (const a of [...s.alive].sort((p, q) => p.index - q.index)) {
+      while (s.alive.has(a)) {
+        const r = tap(s, a, 0);
+        if (!r.ok || s.lost) return false;
+      }
+    }
+    return s.won;
+  }
+
+  // Dica: uma jogada que ainda leva à vitória. Primeiro tenta seguir a solução da fase;
+  // se você já saiu dela, procura uma jogada depois da qual a solução volta a funcionar.
   function useHint() {
     const { st } = ui;
     if (ui.hints <= 0 || st.won || st.lost) return;
     const alive = [...st.alive].sort((a, b) => a.index - b.index);
-    const a = alive.find(b => canMove(st, b));
-    if (!a) return;
+    let a = null;
+    if (solvesInOrder(cloneState(st))) a = alive[0];
+    for (const b of alive) {
+      if (a) break;
+      for (const end of b.double ? [0, 1] : [0]) {
+        if (!isSolid(b) || check(st, b, end)) continue;
+        const s = cloneState(st);
+        tap(s, s.arrows[b.id], end);
+        if (s.won || (!s.lost && solvesInOrder(s))) { a = b; break; }
+      }
+    }
+    if (!a) {
+      // não gasta a dica: avisa que a ordem escolhida provavelmente travou a fase
+      toast('Não encontrei um jeito de vencer a partir daqui. Talvez seja melhor reiniciar a fase.');
+      return;
+    }
     ui.hints--;
     ui.els.get(a).g.classList.add('hint');
     updateHud();
   }
 
   function showOverlay(eyebrow, title, text, label, onClick) {
+    $('overlay-eyebrow').className = 'eyebrow';
+    $('overlay-eyebrow').removeAttribute('aria-label');
     $('overlay-eyebrow').textContent = eyebrow;
     $('overlay-eyebrow').hidden = !eyebrow;
     $('overlay-title').textContent = title;
@@ -1521,6 +1779,8 @@
       if (a.lock != null) extra.push('com cadeado');
       if (a.key != null) extra.push('com chave');
       if (a.frozen) extra.push('congelada');
+      if (a.trail) extra.push('deixa rastro');
+      if (a.switch != null) extra.push('com interruptor');
       if (a.ghost) extra.push(a.solid ? 'fantasma acesa' : 'fantasma apagada');
       if (a.group === 0) extra.push('laranja');
       if (a.group === 1) extra.push('verde');
@@ -1530,6 +1790,7 @@
     }
     const sp = st.lv.special[y][x];
     const names = { wall: 'Parede', hole: 'Buraco', portal: 'Portal' };
+    if (sp && sp.type === 'door') return `Porta ${st.doorOpen[sp.color] ? 'aberta' : 'fechada'}, ${where}`;
     return `${sp ? names[sp.type] : 'Casa vazia'}, ${where}`;
   }
 

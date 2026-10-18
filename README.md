@@ -35,26 +35,41 @@ A cada fase:
 ## Empecilhos
 
 Cada empecilho aparece primeiro sozinho, numa fase de apresentação que explica a regra. Depois ele volta
-misturado com os outros (de 1 a 3 por fase). A lista de regras da fase fica embaixo do tabuleiro.
+misturado com os outros, com no máximo 2 por fase (na maioria das vezes só 1). Na primeira vez que um
+empecilho aparece, uma tela explica a regra. A lista de regras da fase fica embaixo do tabuleiro.
 
 | Fase | Empecilho | Regra |
 | ---: | --- | --- |
 | 3 | Buraco | Casa vazia no meio do tabuleiro; as setas passam por ela. |
 | 5 | Parede | Bloco fixo que nunca sai e bloqueia o caminho. |
-| 7 | Borda fechada | Nenhuma seta sai pelo lado com a barra. |
-| 9 | Setas numeradas | Saem em ordem: 1, 2, 3... |
-| 11 | Seta teimosa | Precisa de vários toques (×2, ×3). |
-| 13 | Cadeado e chave | A seta com cadeado só sai depois da seta com a chave da mesma cor. |
-| 15 | Seta de duas pontas | Sai pela ponta mais perto do toque. |
-| 17 | Seta congelada | Só sai quando nenhuma outra seta estiver encostada nela. |
-| 19 | Grupos de cores | As laranja saem antes das verdes. |
-| 21 | Bomba-relógio | Diminui a cada jogada; se chegar a zero, você perde. |
-| 23 | Limite de toques | Número máximo de toques, contando os erros. |
-| 25 | Portal | A seta entra num portal e continua pelo outro da mesma cor. |
-| 27 | Ponta escondida | A ponta só aparece quando a casa à frente dela fica vazia. |
-| 29 | Seta giratória | Gira um quarto de volta a cada jogada. |
-| 31 | Seta fantasma | Aparece e some a cada jogada; apagada, não bloqueia nem pode ser tocada. |
-| 33 | Neblina | Só dá para ver as bordas e o que fica perto das setas que já saíram. |
+| 7 | Rastro | Quando sai, a seta deixa uma parede na casa logo à frente da ponta. |
+| 9 | Borda fechada | Nenhuma seta sai pelo lado com a barra. |
+| 11 | Setas numeradas | Saem em ordem: 1, 2, 3... |
+| 13 | Interruptor e porta | A seta com interruptor abre ou fecha as portas da mesma cor quando sai. |
+| 15 | Seta teimosa | Precisa de vários toques (×2, ×3). |
+| 17 | Cadeado e chave | A seta com cadeado só sai depois da seta com a chave da mesma cor. |
+| 19 | Seta de duas pontas | Sai pela ponta mais perto do toque. |
+| 21 | Seta congelada | Só sai quando nenhuma outra seta estiver encostada nela. |
+| 23 | Grupos de cores | As laranja saem antes das verdes. |
+| 25 | Bomba-relógio | Diminui a cada jogada; se chegar a zero, você perde. |
+| 27 | Limite de toques | Número máximo de toques, contando os erros. |
+| 29 | Portal | A seta entra num portal e continua pelo outro da mesma cor. |
+| 31 | Ponta escondida | A ponta só aparece quando a casa à frente dela fica vazia. |
+| 33 | Seta giratória | Gira um quarto de volta a cada jogada. |
+| 35 | Seta fantasma | Aparece e some a cada jogada; apagada, não bloqueia nem pode ser tocada. |
+| 37 | Neblina | Só dá para ver as bordas e o que fica perto das setas que já saíram. |
+
+## Armadilhas e estrelas
+
+Sem armadilhas, tirar uma seta livre nunca atrapalha, então basta ir achando setas livres. O rastro e o
+interruptor mudam isso: tirar a seta na hora errada pode deixar a fase sem solução. Para cada fase, o
+gerador cria vários tabuleiros, joga dezenas de partidas tocando em setas livres ao acaso e, nas fases mais
+avançadas, fica com o tabuleiro em que mais partidas assim terminam sem saída.
+
+A dica mostra uma jogada que ainda leva à vitória. Se a ordem escolhida já travou a fase, ela avisa e não
+gasta a dica.
+
+Ao vencer, você ganha 3 estrelas sem nenhum erro, 2 com um erro e 1 com mais. O total fica no topo da tela.
 
 Todo tabuleiro é conferido antes de aparecer: o gerador joga a solução com todas as regras e só aceita
 a fase se ela puder ser vencida.
