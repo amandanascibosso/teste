@@ -18,6 +18,18 @@
     --arrow: #1d3b53;
     --danger: #c8412f;
     --hint: #d98f00;
+    --wall: #6f7f8b;
+    --hole: #b9c6cf;
+    --portal-a: #b0329b;
+    --portal-b: #1f8a9e;
+    --ice: #3a9fd6;
+    --group-a: #e0701c;
+    --group-b: #2e9b5a;
+    --ghost: #7d6bb5;
+    --lock-1: #b0329b;
+    --lock-2: #1f8a9e;
+    --lock-3: #c27c00;
+    --fog: #c9d3da;
     --shadow: 0 2px 12px rgba(24,35,44,.10);
     --font-display: "Bungee", "Arial Black", Impact, sans-serif;
     --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -32,6 +44,18 @@
       --arrow: #9cc8ec;
       --danger: #ff7a66;
       --hint: #ffbf3f;
+      --wall: #5c6d7a;
+      --hole: #0b1115;
+      --portal-a: #e070cf;
+      --portal-b: #4fc6da;
+      --ice: #7fd0ff;
+      --group-a: #ff9a4d;
+      --group-b: #5fd08e;
+      --ghost: #b3a4ec;
+      --lock-1: #e070cf;
+      --lock-2: #4fc6da;
+      --lock-3: #ffbf3f;
+      --fog: #2c3943;
       --shadow: 0 2px 12px rgba(0,0,0,.45);
       color-scheme: dark;
     }
@@ -45,6 +69,18 @@
     --arrow: #9cc8ec;
     --danger: #ff7a66;
     --hint: #ffbf3f;
+    --wall: #5c6d7a;
+    --hole: #0b1115;
+    --portal-a: #e070cf;
+    --portal-b: #4fc6da;
+    --ice: #7fd0ff;
+    --group-a: #ff9a4d;
+    --group-b: #5fd08e;
+    --ghost: #b3a4ec;
+    --lock-1: #e070cf;
+    --lock-2: #4fc6da;
+    --lock-3: #ffbf3f;
+    --fog: #2c3943;
     --shadow: 0 2px 12px rgba(0,0,0,.45);
     color-scheme: dark;
   }
@@ -65,25 +101,28 @@
     -webkit-tap-highlight-color: transparent;
   }
   h1 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 4px 0 12px; letter-spacing: .04em; }
-  .hud .value { font-variant-numeric: tabular-nums; }
   button:focus-visible { outline: 3px solid var(--hint); outline-offset: 2px; }
+
   .hud {
     width: 100%;
     max-width: 480px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 12px;
     font-size: .95rem;
   }
   .hud .label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
-  .hud .value { font-weight: 600; font-size: 1.1rem; }
+  .hud .value { font-weight: 600; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
   .lives { color: var(--danger); letter-spacing: 2px; }
   .lives .lost { opacity: .2; }
+  .taps-low { color: var(--danger); }
 
   .board-wrap {
     width: min(100%, 480px);
+    max-width: 100%;
     aspect-ratio: 1;
     background: var(--surface);
     border-radius: 16px;
@@ -93,38 +132,92 @@
     position: relative;
   }
   .board { width: 100%; height: 100%; display: block; overflow: visible; }
+
+  .toast {
+    min-height: 1.4em;
+    margin: 10px 0 0;
+    color: var(--danger);
+    font-size: .9rem;
+    text-align: center;
+    max-width: 480px;
+  }
+
+  /* ---------- Tabuleiro ---------- */
   .dot { fill: var(--cell); }
+  .wall { fill: var(--wall); }
+  .hole { fill: var(--hole); }
+  .portal { fill: none; stroke-width: 8; }
+  .portal-core { opacity: .35; }
+  .closed-side { fill: var(--wall); }
+  .flash { animation: flash .6s ease; }
+  .fog-cell { fill: var(--fog); transition: opacity .35s ease; }
+  .fog-cell.clear { opacity: 0; pointer-events: none; }
+
   .arrow { cursor: pointer; color: var(--arrow); }
   .arrow .line { fill: none; stroke: currentColor; stroke-width: 15; stroke-linecap: round; stroke-linejoin: round; }
   .arrow .head { fill: currentColor; }
+  .arrow .rot { transition: transform .25s ease; }
+  .arrow .ring { fill: none; stroke: currentColor; stroke-width: 7; stroke-dasharray: 22 12; }
+  .arrow .end-dot { fill: currentColor; }
   .arrow .hit { fill: none; stroke: transparent; stroke-width: 80; stroke-linecap: round; stroke-linejoin: round; pointer-events: stroke; }
+  .arrow .hit-dot { fill: transparent; }
   .arrow:focus { outline: none; }
-  .arrow:focus-visible .line { stroke: var(--hint); }
+  .arrow:focus-visible .line, .arrow:focus-visible .ring { stroke: var(--hint); }
+
+  .badge-bg { fill: var(--surface); stroke: currentColor; stroke-width: 6; }
+  .badge-text { fill: currentColor; font: 700 34px var(--font-body); text-anchor: middle; dominant-baseline: central; }
+  .badge.bomb .badge-bg { fill: var(--danger); stroke: none; }
+  .badge.bomb .badge-text { fill: var(--surface); }
+  .badge.counter .badge-text { font-size: 27px; }
+  .badge.urgent { animation: beat .6s ease infinite; }
+  .icon-stroke { fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; }
+  .icon-fill { fill: currentColor; }
+
+  .arrow.ice { color: var(--ice); }
+  .arrow.group-a { color: var(--group-a); }
+  .arrow.group-b { color: var(--group-b); }
+  .arrow.ghost { color: var(--ghost); }
+  .arrow.ghost.faded { opacity: .22; cursor: default; }
+  .arrow.ghost.faded .line { stroke-dasharray: 10 16; }
   .arrow.flying { pointer-events: none; }
+  .arrow.flying .badge { opacity: 0; }
+  .arrow.hint { color: var(--hint); animation: glow 1s ease infinite; }
   .arrow.shake { animation: shake .4s ease; color: var(--danger); }
   .arrow.blocker { animation: blink .6s ease; }
-  .arrow.hint { color: var(--hint); animation: glow 1s ease infinite; }
+  .arrow.nudge { animation: nudge .25s ease; }
 
   @keyframes shake {
     0%,100% { transform: translate(0, 0); }
-    20% { transform: translate(-6px, 0); }
-    40% { transform: translate(6px, 0); }
-    60% { transform: translate(-4px, 0); }
-    80% { transform: translate(4px, 0); }
+    20% { transform: translate(-14px, 0); }
+    40% { transform: translate(14px, 0); }
+    60% { transform: translate(-9px, 0); }
+    80% { transform: translate(9px, 0); }
+  }
+  @keyframes nudge {
+    0%,100% { transform: translate(0, 0); }
+    50% { transform: translate(var(--nx), var(--ny)); }
   }
   @keyframes blink {
-    0%,100% { color: var(--arrow); }
+    0%,100% { color: inherit; }
     40% { color: var(--danger); }
+  }
+  @keyframes flash {
+    0%,100% { opacity: 1; }
+    40% { opacity: .2; }
   }
   @keyframes glow {
     0%,100% { opacity: 1; }
     50% { opacity: .45; }
   }
+  @keyframes beat {
+    0%,100% { opacity: 1; }
+    50% { opacity: .55; }
+  }
 
   .controls {
     display: flex;
     gap: 10px;
-    margin-top: 14px;
+    margin-top: 8px;
     flex-wrap: wrap;
     justify-content: center;
   }
@@ -142,12 +235,30 @@
   button.btn:disabled { opacity: .45; cursor: default; }
   button.btn.primary { background: var(--arrow); color: var(--surface); font-weight: 600; }
 
+  .legend {
+    width: 100%;
+    max-width: 480px;
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .legend:empty { display: none; }
+  .legend-title { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+  .rule {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: .88rem;
+    line-height: 1.4;
+  }
+  .rule strong { display: block; color: var(--arrow); }
+
   .help { color: var(--muted); font-size: .85rem; max-width: 480px; text-align: center; margin-top: 14px; line-height: 1.4; }
 
   .overlay {
     position: absolute;
     inset: 0;
-    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
     display: none;
     flex-direction: column;
     align-items: center;
@@ -155,13 +266,16 @@
     gap: 10px;
     z-index: 5;
     text-align: center;
-    padding: 20px;
+    padding: 24px;
   }
   .overlay.show { display: flex; }
-  .overlay h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; color: var(--arrow); }
-  .overlay p { margin: 0 0 6px; color: var(--muted); }
+  .overlay h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; color: var(--arrow); text-wrap: balance; }
+  .overlay p { margin: 0 0 6px; color: var(--muted); max-width: 34ch; line-height: 1.45; }
+  .overlay .eyebrow { color: var(--hint); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin: 0; }
+
   @media (prefers-reduced-motion: reduce) {
-    .arrow.shake, .arrow.hint, .arrow.blocker { animation: none; }
+    .arrow.shake, .arrow.hint, .arrow.blocker, .arrow.nudge, .badge.urgent, .flash { animation: none; }
+    .arrow .rot, .fog-cell { transition: none; }
   }
 </style>
 </head>
@@ -172,42 +286,72 @@
     <div><div class="label">Fase</div><div class="value" id="level">1</div></div>
     <div><div class="label">Setas</div><div class="value" id="remaining">0</div></div>
     <div><div class="label">Vidas</div><div class="value lives" id="lives"></div></div>
+    <div id="taps-box" hidden><div class="label">Toques</div><div class="value" id="taps">0</div></div>
     <div><div class="label">Recorde</div><div class="value" id="best">1</div></div>
   </div>
 
   <div class="board-wrap">
     <svg class="board" id="board" aria-label="Tabuleiro"></svg>
     <div class="overlay" id="overlay">
+      <p class="eyebrow" id="overlay-eyebrow"></p>
       <h2 id="overlay-title"></h2>
       <p id="overlay-text"></p>
       <button class="btn primary" id="overlay-btn"></button>
     </div>
   </div>
 
+  <p class="toast" id="toast" aria-live="polite"></p>
+
   <div class="controls">
     <button class="btn" id="hint-btn">Dica (2)</button>
     <button class="btn" id="restart-btn">Reiniciar fase</button>
   </div>
 
+  <div class="legend" id="legend"></div>
+
   <p class="help">
     Toque numa seta para ela deslizar para fora do tabuleiro, seguindo a ponta.
-    Ela só sai se não houver outra seta à frente da ponta. Tocar numa seta bloqueada custa uma vida.
+    Ela só sai se não houver nada à frente da ponta. Tocar numa seta que não pode sair custa uma vida.
   </p>
 
 <script>
 (() => {
+  // ======================================================================
+  // Regras básicas
+  // ======================================================================
   const DIRS = {
-    up:    { dx: 0,  dy: -1 },
-    right: { dx: 1,  dy: 0 },
-    down:  { dx: 0,  dy: 1 },
-    left:  { dx: -1, dy: 0 },
+    up:    { dx: 0,  dy: -1, rot: 0 },
+    right: { dx: 1,  dy: 0,  rot: 90 },
+    down:  { dx: 0,  dy: 1,  rot: 180 },
+    left:  { dx: -1, dy: 0,  rot: 270 },
   };
-  const DIR_KEYS = Object.keys(DIRS);
+  const DIR_KEYS = ['up', 'right', 'down', 'left']; // sentido horário
   const DIR_NAMES = { up: 'cima', right: 'a direita', down: 'baixo', left: 'a esquerda' };
+  const turn = (dir, n) => DIR_KEYS[(((DIR_KEYS.indexOf(dir) + n) % 4) + 4) % 4];
+  const dirBetween = ([ax, ay], [bx, by]) => DIR_KEYS.find(k => DIRS[k].dx === bx - ax && DIRS[k].dy === by - ay);
   const MAX_LIVES = 3;
   const HINTS_PER_LEVEL = 2;
-  const CELL = 100; // unidades do SVG por casa
-  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // Cada empecilho é apresentado sozinho na fase indicada e depois volta misturado com os outros.
+  const MECHANICS = [
+    { id: 'hole',    level: 3,  name: 'Buraco',              desc: 'Casa vazia no meio do tabuleiro. As setas passam por ela normalmente.' },
+    { id: 'wall',    level: 5,  name: 'Parede',              desc: 'Bloco fixo que nunca sai. Uma seta que aponta para a parede não consegue sair por esse lado.' },
+    { id: 'closed',  level: 7,  name: 'Borda fechada',       desc: 'O lado com a barra está fechado: nenhuma seta sai por ali.' },
+    { id: 'number',  level: 9,  name: 'Setas numeradas',     desc: 'As setas com número saem em ordem: primeiro a 1, depois a 2, e assim por diante.' },
+    { id: 'counter', level: 11, name: 'Seta teimosa',        desc: 'Precisa ser tocada várias vezes. O número mostra quantos toques faltam.' },
+    { id: 'lock',    level: 13, name: 'Cadeado e chave',     desc: 'A seta com cadeado só sai depois que a seta com a chave da mesma cor sair.' },
+    { id: 'double',  level: 15, name: 'Seta de duas pontas', desc: 'Pode sair pelos dois lados. Toque perto da ponta pela qual você quer que ela saia.' },
+    { id: 'frozen',  level: 17, name: 'Seta congelada',      desc: 'Só descongela quando nenhuma outra seta estiver encostada nela.' },
+    { id: 'group',   level: 19, name: 'Grupos de cores',     desc: 'Todas as setas laranja precisam sair antes de qualquer seta verde.' },
+    { id: 'bomb',    level: 21, name: 'Bomba-relógio',       desc: 'O número diminui a cada jogada. Tire a seta antes que ele chegue a zero, senão ela explode.' },
+    { id: 'limit',   level: 23, name: 'Limite de toques',    desc: 'Você tem um número máximo de toques, e os erros também contam.' },
+    { id: 'portal',  level: 25, name: 'Portal',              desc: 'A seta que entra num portal sai pelo outro da mesma cor, na mesma direção. O caminho depois dele também precisa estar livre.' },
+    { id: 'hidden',  level: 27, name: 'Ponta escondida',     desc: 'Algumas setas não mostram para onde apontam. A ponta aparece quando a casa à frente dela fica vazia.' },
+    { id: 'spinner', level: 29, name: 'Seta giratória',      desc: 'Gira um quarto de volta a cada jogada. Toque quando ela estiver apontando para um caminho livre.' },
+    { id: 'ghost',   level: 31, name: 'Seta fantasma',       desc: 'Aparece e some a cada jogada. Apagada, ela não bloqueia ninguém, mas também não pode ser tocada.' },
+    { id: 'fog',     level: 33, name: 'Neblina',             desc: 'Você só enxerga as bordas e o que fica perto das setas que já saíram.' },
+  ];
+  const MECH_BY_ID = Object.fromEntries(MECHANICS.map(m => [m.id, m]));
 
   // Gerador pseudoaleatório com semente: a mesma fase sempre gera o mesmo tabuleiro.
   function mulberry32(seed) {
@@ -219,39 +363,6 @@
     };
   }
 
-  function levelParams(level) {
-    return {
-      size: Math.min(5 + Math.floor((level - 1) / 3), 10),
-      // comprimento máximo de uma seta, em casas
-      maxLen: Math.min(3 + Math.floor(level / 2), 9),
-      // chance de preferir as escolhas que criam cadeias de dependência mais longas
-      greed: Math.min(0.15 + level * 0.07, 0.95),
-    };
-  }
-
-  // Casas à frente da ponta da seta, até a borda.
-  function rayCells(x, y, dir, size) {
-    const { dx, dy } = DIRS[dir];
-    const cells = [];
-    let cx = x + dx, cy = y + dy;
-    while (cx >= 0 && cy >= 0 && cx < size && cy < size) {
-      cells.push([cx, cy]);
-      cx += dx; cy += dy;
-    }
-    return cells;
-  }
-
-  const headOf = a => a.cells[a.cells.length - 1];
-
-  // A seta inteira desliza seguindo a ponta, então só importa o caminho à frente da ponta.
-  function blockerOf(grid, a) {
-    const [hx, hy] = headOf(a);
-    for (const [cx, cy] of rayCells(hx, hy, a.dir, grid.length)) {
-      if (grid[cy][cx]) return grid[cy][cx];
-    }
-    return null;
-  }
-
   function shuffle(arr, rng) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
@@ -260,17 +371,258 @@
     return arr;
   }
 
-  // Divide o tabuleiro inteiro em caminhos (o corpo das setas), sem sobrar casa vazia.
-  function partition(size, rng, maxLen) {
-    const inside = (x, y) => x >= 0 && y >= 0 && x < size && y < size;
-    const owner = Array.from({ length: size }, () => Array(size).fill(-1));
-    const freeNeighbors = (x, y) => DIR_KEYS.map(k => DIRS[k])
-      .filter(d => inside(x + d.dx, y + d.dy) && owner[y + d.dy][x + d.dx] === -1);
-    const paths = [];
+  function levelPlan(level) {
+    const rng = mulberry32(level * 104729 + 3);
+    const intro = MECHANICS.find(m => m.level === level);
+    let size = Math.min(5 + Math.floor((level - 1) / 4), 10);
+    let maxLen = Math.min(3 + Math.floor(level / 2), 9);
+    let mechs;
+    if (intro) {
+      mechs = [intro.id];
+      size = Math.min(size, 7);
+      maxLen = Math.min(maxLen, 6);
+    } else {
+      const known = MECHANICS.filter(m => m.level < level).map(m => m.id);
+      const k = Math.min(known.length, 1 + Math.floor(rng() * 3));
+      mechs = shuffle(known, rng).slice(0, k);
+      // na neblina, buracos e portais esconderiam a única saída visível
+      if (mechs.includes('fog')) mechs = mechs.filter(m => m !== 'hole' && m !== 'portal');
+    }
+    return {
+      size,
+      maxLen,
+      // chance de preferir as escolhas que criam cadeias de dependência mais longas
+      greed: Math.min(0.15 + level * 0.05, 0.9),
+      mechs,
+      intro: intro ? intro.id : null,
+    };
+  }
 
+  // Caminho que a ponta percorre até sair: atravessa buracos, pula portais, para em paredes.
+  // `cells` são as casas que precisam estar sem setas; `end` diz como o caminho termina.
+  function route(lv, x, y, dir) {
+    const { dx, dy } = DIRS[dir];
+    const cells = [];
+    const seen = new Set();
+    let portal = null;
+    let cx = x + dx, cy = y + dy;
+    for (;;) {
+      if (cx < 0 || cy < 0 || cx >= lv.size || cy >= lv.size) {
+        return { cells, end: lv.closed.includes(dir) ? 'edge' : 'out', side: dir, portal };
+      }
+      const sp = lv.special[cy][cx];
+      if (sp && sp.type === 'wall') return { cells, end: 'wall', at: [cx, cy], portal };
+      if (sp && sp.type === 'portal') {
+        const key = cy * lv.size + cx;
+        if (seen.has(key)) return { cells, end: 'loop', portal };
+        seen.add(key);
+        if (!portal) portal = { from: [cx, cy], to: sp.pair };
+        [cx, cy] = sp.pair;
+      } else if (!sp) {
+        cells.push([cx, cy]);
+      }
+      cx += dx; cy += dy;
+    }
+  }
+
+  // ======================================================================
+  // Estado de uma partida (usado pelo jogo e pelo gerador, para conferir a solução)
+  // ======================================================================
+  function createState(lv) {
+    const st = {
+      lv, size: lv.size,
+      grid: Array.from({ length: lv.size }, () => Array(lv.size).fill(null)),
+      arrows: [], alive: new Set(),
+      moves: 0, taps: 0, lives: MAX_LIVES,
+      won: false, lost: null,
+      revealed: new Set(),
+    };
+    for (const d of lv.arrows) {
+      const a = { ...d, solid: d.ghost ? d.solid0 : true, counterLeft: d.counter || 1, bombLeft: d.bomb || null, shown: false, turns: 0, startRot: DIRS[d.dir].rot };
+      st.arrows.push(a);
+      st.alive.add(a);
+      for (const [x, y] of a.cells) st.grid[y][x] = a;
+    }
+    if (lv.fog) {
+      for (let y = 0; y < lv.size; y++) for (let x = 0; x < lv.size; x++) {
+        if (x === 0 || y === 0 || x === lv.size - 1 || y === lv.size - 1) st.revealed.add(y * lv.size + x);
+      }
+    }
+    updateHidden(st);
+    return st;
+  }
+
+  const isSolid = a => !a.ghost || a.solid;
+
+  // end = 0 sai pela ponta principal; end = 1 pela outra ponta (só setas de duas pontas)
+  function orientationOf(a, end) {
+    if (end === 1 && a.double) {
+      const cells = [...a.cells].reverse();
+      return { cells, dir: dirBetween(cells[cells.length - 2], cells[cells.length - 1]) };
+    }
+    return { cells: a.cells, dir: a.dir };
+  }
+
+  function neighborsOf(st, a) {
+    const out = new Set();
+    for (const [x, y] of a.cells) {
+      for (const k of DIR_KEYS) {
+        const nx = x + DIRS[k].dx, ny = y + DIRS[k].dy;
+        if (nx < 0 || ny < 0 || nx >= st.size || ny >= st.size) continue;
+        const b = st.grid[ny][nx];
+        if (b && b !== a) out.add(b);
+      }
+    }
+    return out;
+  }
+
+  // Motivo pelo qual a seta não pode sair agora, ou null se pode.
+  function check(st, a, end) {
+    if (!isSolid(a)) return { type: 'ghost' };
+    if (a.frozen) {
+      const [b] = neighborsOf(st, a);
+      if (b) return { type: 'frozen', arrow: b };
+    }
+    if (a.lock != null) {
+      for (const b of st.alive) if (b.key === a.lock) return { type: 'lock', arrow: b };
+    }
+    if (a.number != null) {
+      let first = null;
+      for (const b of st.alive) if (b.number != null && b.number < a.number && (!first || b.number < first.number)) first = b;
+      if (first) return { type: 'order', arrow: first };
+    }
+    if (a.group === 1) {
+      for (const b of st.alive) if (b.group === 0) return { type: 'group', arrow: b };
+    }
+    const o = orientationOf(a, end);
+    const [hx, hy] = o.cells[o.cells.length - 1];
+    const r = route(st.lv, hx, hy, o.dir);
+    for (const [x, y] of r.cells) {
+      const b = st.grid[y][x];
+      if (b && isSolid(b)) return { type: 'arrow', arrow: b };
+    }
+    if (r.end !== 'out') return { type: r.end, at: r.at, side: r.side };
+    return null;
+  }
+
+  function canMove(st, a) {
+    return isSolid(a) && (!check(st, a, 0) || (a.double && !check(st, a, 1)));
+  }
+
+  function hasMove(st) {
+    for (const a of st.alive) if (canMove(st, a)) return true;
+    return false;
+  }
+
+  // Ponta escondida aparece quando a casa à frente dela fica vazia (ou é a borda).
+  function updateHidden(st) {
+    for (const a of st.alive) {
+      if (!a.hidden || a.shown) continue;
+      const [hx, hy] = a.cells[a.cells.length - 1];
+      const nx = hx + DIRS[a.dir].dx, ny = hy + DIRS[a.dir].dy;
+      if (nx < 0 || ny < 0 || nx >= st.size || ny >= st.size) { a.shown = true; continue; }
+      const sp = st.lv.special[ny][nx];
+      if (!st.grid[ny][nx] && !(sp && sp.type === 'wall')) a.shown = true;
+    }
+  }
+
+  // Um toque numa seta. Devolve o que aconteceu para a interface animar.
+  function tap(st, a, end = 0) {
+    if (st.won || st.lost || !st.alive.has(a)) return { ignored: true };
+    if (!isSolid(a)) return { ignored: true, reason: { type: 'ghost' } };
+    st.taps++;
+    const reason = check(st, a, end);
+    if (reason) {
+      st.lives--;
+      if (st.lives <= 0) st.lost = 'lives';
+      else if (st.lv.limit && st.taps >= st.lv.limit) st.lost = 'limit';
+      return { ok: false, reason };
+    }
+
+    const result = { ok: true, removed: false };
+    a.counterLeft--;
+    if (a.counterLeft <= 0) {
+      const o = orientationOf(a, end);
+      const [hx, hy] = o.cells[o.cells.length - 1];
+      result.removed = true;
+      result.orientation = o;
+      result.route = route(st.lv, hx, hy, o.dir);
+      st.alive.delete(a);
+      for (const [x, y] of a.cells) {
+        st.grid[y][x] = null;
+        if (st.lv.fog) {
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < st.size && ny < st.size) st.revealed.add(ny * st.size + nx);
+          }
+        }
+      }
+    }
+
+    // Efeitos de cada jogada.
+    st.moves++;
+    let exploded = null;
+    for (const b of st.alive) {
+      if (b.spinner) { b.dir = turn(b.dir, 1); b.turns++; }
+      if (b.ghost) b.solid = !b.solid;
+      if (b.bombLeft != null) {
+        b.bombLeft--;
+        if (b.bombLeft <= 0 && !exploded) exploded = b;
+      }
+    }
+    if ([...st.alive].every(b => b.ghost)) for (const b of st.alive) b.solid = true;
+    updateHidden(st);
+
+    if (!st.alive.size) st.won = true;
+    else if (exploded) { st.lost = 'bomb'; result.exploded = exploded; }
+    else if (st.lv.limit && st.taps >= st.lv.limit) st.lost = 'limit';
+    else if (!hasMove(st)) st.lost = 'stuck';
+    return result;
+  }
+
+  // ======================================================================
+  // Gerador de fases
+  // ======================================================================
+  function allCells(size) {
     const cells = [];
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) cells.push([x, y]);
-    for (const [sx, sy] of shuffle(cells, rng)) {
+    return cells;
+  }
+
+  function placeSpecials(plan, rng) {
+    const { size, mechs, intro } = plan;
+    const has = id => mechs.includes(id);
+    const special = Array.from({ length: size }, () => Array(size).fill(null));
+    const pool = shuffle(allCells(size), rng);
+    const area = size * size;
+    const amount = (introShare, mixShare) => Math.max(1, Math.round(area * (intro ? introShare : mixShare)));
+    const spinners = [];
+    if (has('wall')) for (let i = amount(0.1, 0.05); i > 0; i--) { const [x, y] = pool.pop(); special[y][x] = { type: 'wall' }; }
+    if (has('hole')) for (let i = amount(0.1, 0.05); i > 0; i--) { const [x, y] = pool.pop(); special[y][x] = { type: 'hole' }; }
+    if (has('portal')) {
+      for (let p = 0; p < (intro ? 2 : 1); p++) {
+        // os dois portais do par ficam afastados, para o salto fazer diferença
+        const a = pool.pop();
+        const far = pool.findIndex(([x, y]) => Math.abs(x - a[0]) + Math.abs(y - a[1]) >= 3);
+        const b = far >= 0 ? pool.splice(far, 1)[0] : pool.pop();
+        special[a[1]][a[0]] = { type: 'portal', pair: b, color: p };
+        special[b[1]][b[0]] = { type: 'portal', pair: a, color: p };
+      }
+    }
+    if (has('spinner')) for (let i = amount(0.07, 0.04); i > 0; i--) spinners.push(pool.pop());
+    const closed = has('closed') ? shuffle([...DIR_KEYS], rng).slice(0, intro || rng() < 0.7 ? 1 : 2) : [];
+    return { special, spinners, closed };
+  }
+
+  // Divide as casas livres do tabuleiro em caminhos (o corpo das setas), sem sobrar nenhuma.
+  function partition(size, rng, maxLen, blocked) {
+    const inside = (x, y) => x >= 0 && y >= 0 && x < size && y < size;
+    const owner = Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) => blocked[y][x] ? -2 : -1));
+    const freeNeighbors = (x, y) => DIR_KEYS.map(k => DIRS[k])
+      .filter(d => inside(x + d.dx, y + d.dy) && owner[y + d.dy][x + d.dx] === -1);
+    let paths = [];
+
+    for (const [sx, sy] of shuffle(allCells(size), rng)) {
       if (owner[sy][sx] !== -1) continue;
       const id = paths.length;
       const path = [[sx, sy]];
@@ -304,18 +656,21 @@
       const si = paths.findIndex(p => p.length === 1);
       if (si === -1) return paths;
       const [sx, sy] = paths[si][0];
-      const nbrs = shuffle(DIR_KEYS.map(k => [sx + DIRS[k].dx, sy + DIRS[k].dy]).filter(([x, y]) => inside(x, y)), rng);
-      const pathOf = ([x, y]) => paths.findIndex(p => p.some(([px, py]) => px === x && py === y));
+      const where = new Map();
+      paths.forEach((p, i) => p.forEach(([x, y]) => where.set(y * size + x, i)));
+      const nbrs = shuffle(DIR_KEYS.map(k => [sx + DIRS[k].dx, sy + DIRS[k].dy])
+        .filter(([x, y]) => inside(x, y) && where.has(y * size + x) && where.get(y * size + x) !== si), rng);
+      if (!nbrs.length) return null;
       let done = false;
       for (const n of nbrs) {
-        const p = paths[pathOf(n)];
+        const p = paths[where.get(n[1] * size + n[0])];
         if (p[0][0] === n[0] && p[0][1] === n[1]) { p.unshift([sx, sy]); done = true; break; }
         const e = p[p.length - 1];
         if (e[0] === n[0] && e[1] === n[1]) { p.push([sx, sy]); done = true; break; }
       }
       if (!done) {
         const n = nbrs[0];
-        const pi = pathOf(n);
+        const pi = where.get(n[1] * size + n[0]);
         const p = paths[pi];
         const i = p.findIndex(([x, y]) => x === n[0] && y === n[1]);
         paths[pi] = [...p.slice(0, i + 1), [sx, sy]];
@@ -327,26 +682,27 @@
   }
 
   // Escolhe para que lado cada caminho aponta, tirando setas uma a uma: só sai uma
-  // seta cujo caminho à frente da ponta já esteja vazio. Se todas saem, a fase tem
-  // solução. Para dificultar, prefere a ponta que só ficou livre por último.
-  function orient(paths, size, rng, greed) {
-    const occ = Array.from({ length: size }, () => Array(size).fill(-1));
-    paths.forEach((p, i) => p.forEach(([x, y]) => { occ[y][x] = i; }));
-    const options = p => [p, [...p].reverse()].map(cells => {
-      const [hx, hy] = cells[cells.length - 1];
-      const [px, py] = cells[cells.length - 2];
-      const dir = DIR_KEYS.find(k => DIRS[k].dx === hx - px && DIRS[k].dy === hy - py);
-      return { cells, dir };
-    });
-    const firstFree = new Map(); // "caminho:lado" -> passo em que ficou livre
+  // seta cujo caminho à frente da ponta já esteja livre. A ordem em que elas saem
+  // é a solução da fase. Para dificultar, prefere a ponta que só ficou livre por último.
+  function orient(lv, paths, rng, greed) {
+    const occ = Array.from({ length: lv.size }, () => Array(lv.size).fill(-1));
+    paths.forEach((p, i) => p.cells.forEach(([x, y]) => { occ[y][x] = i; }));
+    const options = p => {
+      if (p.spinner) return DIR_KEYS.map(dir => ({ cells: p.cells, dir }));
+      return [p.cells, [...p.cells].reverse()].map(cells => ({
+        cells, dir: dirBetween(cells[cells.length - 2], cells[cells.length - 1]),
+      }));
+    };
+    const firstFree = new Map();
     const left = new Set(paths.keys());
-    const arrows = [];
+    const order = [];
     for (let step = 0; left.size; step++) {
       const ready = [];
       for (const i of left) {
         options(paths[i]).forEach((o, side) => {
           const [hx, hy] = o.cells[o.cells.length - 1];
-          if (rayCells(hx, hy, o.dir, size).every(([x, y]) => occ[y][x] === -1)) {
+          const r = route(lv, hx, hy, o.dir);
+          if (r.end === 'out' && r.cells.every(([x, y]) => occ[y][x] === -1)) {
             const key = `${i}:${side}`;
             if (!firstFree.has(key)) firstFree.set(key, step);
             ready.push({ i, o, at: firstFree.get(key) });
@@ -354,62 +710,168 @@
         });
       }
       if (!ready.length) return null;
-      let pick;
+      let pool = ready;
       if (rng() < greed) {
         const latest = Math.max(...ready.map(r => r.at));
-        const pool = ready.filter(r => r.at === latest);
-        pick = pool[Math.floor(rng() * pool.length)];
-      } else {
-        pick = ready[Math.floor(rng() * ready.length)];
+        pool = ready.filter(r => r.at === latest);
       }
+      const pick = pool[Math.floor(rng() * pool.length)];
       left.delete(pick.i);
       for (const [x, y] of pick.o.cells) occ[y][x] = -1;
-      arrows.push(pick.o);
+      order.push({ cells: pick.o.cells, dir: pick.o.dir, spinner: !!paths[pick.i].spinner });
     }
-    return arrows;
+    return order;
   }
 
-  // Número de "rodadas" para resolver tirando todas as setas livres de uma vez:
-  // mede o tamanho da maior cadeia de dependência.
-  function chainDepth(grid, arrows) {
-    const g = grid.map(r => [...r]);
-    let left = [...arrows], waves = 0;
+  // Coloca os empecilhos de seta usando a ordem da solução, para que ela continue valendo.
+  function decorate(lv, plan, rng) {
+    const arrows = lv.arrows;
+    const n = arrows.length;
+    const has = id => plan.mechs.includes(id);
+    const count = (introN, mixN) => plan.intro ? introN : mixN;
+    const pick = (k, ok = () => true) => {
+      const chosen = shuffle(arrows.filter(a => !a.deco && !a.spinner && ok(a)), rng).slice(0, k);
+      chosen.forEach(a => { a.deco = true; });
+      return chosen;
+    };
+
+    if (has('ghost')) pick(count(3, 2)).forEach(a => { a.ghost = true; });
+    if (has('counter')) pick(count(3, 2)).forEach(a => { a.counter = 2 + Math.floor(rng() * 2); });
+
+    // número de jogadas feitas antes de cada seta sair, seguindo a solução
+    let j = 0;
+    for (const a of arrows) { a.J = j; j += a.counter || 1; }
+    const total = j;
+
+    for (const a of arrows) {
+      if (a.spinner) a.dir = turn(a.dir, -a.J);
+      if (a.ghost) a.solid0 = a.J % 2 === 0;
+    }
+    if (has('bomb')) {
+      pick(count(2, 1), a => a.index >= 1 && a.index <= Math.max(2, n * 0.6))
+        .forEach(a => { a.bomb = a.J + 1 + (plan.intro ? 3 : 1 + Math.floor(rng() * 3)); });
+    }
+    if (has('number')) {
+      pick(count(4, 3)).sort((a, b) => a.index - b.index).forEach((a, i) => { a.number = i + 1; });
+    }
+    if (has('lock')) {
+      for (let p = 0; p < count(2, 1); p++) {
+        const [locked] = pick(1, a => a.index >= 1);
+        if (!locked) break;
+        const [key] = pick(1, a => a.index < locked.index);
+        if (!key) { locked.deco = false; break; }
+        locked.lock = p;
+        key.key = p;
+      }
+    }
+    if (has('frozen')) {
+      const occ = Array.from({ length: lv.size }, () => Array(lv.size).fill(null));
+      arrows.forEach(a => a.cells.forEach(([x, y]) => { occ[y][x] = a; }));
+      const touchesLater = a => a.cells.some(([x, y]) => DIR_KEYS.some(k => {
+        const b = occ[y + DIRS[k].dy]?.[x + DIRS[k].dx];
+        return b && b !== a && b.index > a.index;
+      }));
+      pick(count(3, 2), a => !touchesLater(a)).forEach(a => { a.frozen = true; });
+    }
+    if (has('group')) {
+      const split = Math.floor(n * (0.35 + rng() * 0.2));
+      pick(count(4, 3), a => a.index < split).forEach(a => { a.group = 0; });
+      pick(count(4, 3), a => a.index >= split).forEach(a => { a.group = 1; });
+    }
+    if (has('double')) pick(count(3, 2)).forEach(a => { a.double = true; });
+    if (has('hidden')) pick(count(4, 3)).forEach(a => { a.hidden = true; });
+    if (has('limit')) lv.limit = total + (plan.intro ? 4 : 2 + Math.floor(rng() * 2));
+    if (has('fog')) lv.fog = true;
+  }
+
+  // Joga a solução com as regras de verdade para garantir que a fase pode ser vencida.
+  function validate(lv) {
+    const st = createState(lv);
+    for (const d of lv.arrows) {
+      const a = st.arrows[d.id];
+      for (let t = 0; t < (d.counter || 1); t++) {
+        const r = tap(st, a, 0);
+        if (!r.ok) return false;
+        if (st.lost) return false;
+      }
+    }
+    return st.won;
+  }
+
+  // Número de "rodadas" para resolver tirando todas as setas livres de uma vez,
+  // considerando só o bloqueio físico: mede a maior cadeia de dependência.
+  function chainDepth(lv) {
+    const occ = Array.from({ length: lv.size }, () => Array(lv.size).fill(null));
+    lv.arrows.forEach(a => a.cells.forEach(([x, y]) => { occ[y][x] = a; }));
+    const exits = (a, dir) => {
+      const [hx, hy] = a.cells[a.cells.length - 1];
+      const r = route(lv, hx, hy, dir);
+      return r.end === 'out' && r.cells.every(([x, y]) => !occ[y][x]);
+    };
+    let left = [...lv.arrows], waves = 0;
     while (left.length) {
-      const free = left.filter(a => !blockerOf(g, a));
-      if (!free.length) return Infinity;
-      for (const a of free) for (const [x, y] of a.cells) g[y][x] = null;
+      const free = left.filter(a => a.spinner ? DIR_KEYS.some(d => exits(a, d)) : exits(a, a.dir));
+      if (!free.length) return waves + left.length;
+      free.forEach(a => a.cells.forEach(([x, y]) => { occ[y][x] = null; }));
       left = left.filter(a => !free.includes(a));
       waves++;
     }
     return waves;
   }
 
-  // Gera vários tabuleiros cheios para a fase e, nas fases mais avançadas,
-  // fica com o que tem a cadeia de dependência mais longa.
-  function generate(level) {
-    const rng = mulberry32(level * 7919 + 17);
-    const { size, maxLen, greed } = levelParams(level);
-    let best = null;
-    for (let tries = 0; tries < 200 && (!best || tries < 12); tries++) {
-      const paths = partition(size, rng, maxLen);
-      if (!paths) continue;
-      const oriented = orient(paths, size, rng, greed);
-      if (!oriented) continue;
-      const grid = Array.from({ length: size }, () => Array(size).fill(null));
-      const arrows = oriented.map((o, id) => ({ id, cells: o.cells, dir: o.dir }));
-      for (const a of arrows) for (const [x, y] of a.cells) grid[y][x] = a;
-      const depth = chainDepth(grid, arrows);
-      if (!best || (rng() < greed ? depth > best.depth : false)) best = { size, grid, arrows, depth };
-    }
-    return best;
+  function buildLevel(plan, rng) {
+    const { size, maxLen, greed } = plan;
+    const { special, spinners, closed } = placeSpecials(plan, rng);
+    const blocked = special.map(row => row.map(s => !!s));
+    spinners.forEach(([x, y]) => { blocked[y][x] = true; });
+    const paths = partition(size, rng, maxLen, blocked);
+    if (!paths) return null;
+    const all = [...paths.map(cells => ({ cells })), ...spinners.map(c => ({ cells: [c], spinner: true }))];
+    const lv = { size, special, closed, limit: null, fog: false, plan };
+    const order = orient(lv, all, rng, greed);
+    if (!order) return null;
+    lv.arrows = order.map((o, i) => ({ id: i, index: i, cells: o.cells, dir: o.dir, spinner: o.spinner }));
+    decorate(lv, plan, rng);
+    return validate(lv) ? lv : null;
   }
 
-  // ---------- Estado e interface ----------
+  // Gera vários tabuleiros válidos para a fase e, nas mais avançadas,
+  // fica com o que tem a cadeia de dependência mais longa.
+  function generate(level) {
+    const plan = levelPlan(level);
+    const rng = mulberry32(level * 7919 + 17);
+    let best = null, found = 0;
+    for (let tries = 0; tries < 300 && found < 8; tries++) {
+      const lv = buildLevel(plan, rng);
+      if (!lv) continue;
+      found++;
+      const depth = chainDepth(lv);
+      if (!best || (rng() < plan.greed && depth > best.depth)) best = { lv, depth };
+    }
+    if (!best) {
+      // reserva: fase sem empecilhos, que sempre dá certo
+      const simple = { ...plan, mechs: [], intro: null };
+      for (let tries = 0; !best; tries++) {
+        const lv = buildLevel(simple, rng);
+        if (lv) best = { lv };
+      }
+      best.lv.plan = plan;
+    }
+    best.lv.level = level;
+    return best.lv;
+  }
+
+  // ======================================================================
+  // Interface
+  // ======================================================================
+  const CELL = 100;
+  const PAD = 18;
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const HEAD_POINTS = '0,-34 27,8 -27,8';
   const $ = id => document.getElementById(id);
   const boardEl = $('board');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const state = { level: 1, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid: null, size: 0, remaining: 0, over: false };
-  const arrowEls = new Map();
+  const ui = { st: null, level: 1, hints: HINTS_PER_LEVEL, els: new Map(), specials: new Map(), sides: new Map(), fog: [] };
 
   function loadNum(key) {
     try { return parseInt(localStorage.getItem(key) || '1', 10) || 1; } catch { return 1; }
@@ -417,65 +879,266 @@
   function saveNum(key, value) {
     try { localStorage.setItem(key, String(value)); } catch {}
   }
+  function seen(id) {
+    try { return localStorage.getItem('arrows-seen-' + id) === '1'; } catch { return false; }
+  }
+  function markSeen(id) {
+    try { localStorage.setItem('arrows-seen-' + id, '1'); } catch {}
+  }
   const loadBest = () => loadNum('arrows-best');
 
-  function startLevel(level) {
-    const { size, grid, arrows } = generate(level);
-    Object.assign(state, { level, lives: MAX_LIVES, hints: HINTS_PER_LEVEL, grid, size, remaining: arrows.length, over: false });
-    saveNum('arrows-level', level);
-    hideOverlay();
-    render(arrows);
-  }
-
   const center = v => v * CELL + CELL / 2;
-  const svgEl = (tag, attrs) => {
+  const svgEl = (tag, attrs = {}) => {
     const el = document.createElementNS(SVG_NS, tag);
     for (const k in attrs) el.setAttribute(k, attrs[k]);
     return el;
   };
 
-  // Ponta da seta: triângulo desenhado apontando para cima e girado.
-  const HEAD_POINTS = '0,-34 27,8 -27,8';
-  const ROT = { up: 0, right: 90, down: 180, left: 270 };
-
-  function render(arrows) {
-    const { size } = state;
-    const pad = CELL * 0.1;
-    boardEl.setAttribute('viewBox', `${-pad} ${-pad} ${size * CELL + 2 * pad} ${size * CELL + 2 * pad}`);
-    boardEl.innerHTML = '';
-    arrowEls.clear();
-
-    const dots = svgEl('g', {});
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      dots.appendChild(svgEl('circle', { class: 'dot', cx: center(x), cy: center(y), r: 5 }));
+  function startLevel(level) {
+    const lv = generate(level);
+    ui.st = createState(lv);
+    ui.level = level;
+    ui.hints = HINTS_PER_LEVEL;
+    saveNum('arrows-level', level);
+    hideOverlay();
+    toast('');
+    render();
+    renderLegend();
+    const intro = lv.plan.intro;
+    if (intro && !seen(intro)) {
+      markSeen(intro);
+      showOverlay('Novidade', MECH_BY_ID[intro].name, MECH_BY_ID[intro].desc, 'Jogar', hideOverlay);
     }
-    boardEl.appendChild(dots);
+  }
 
-    for (const a of arrows) {
-      const pts = a.cells.map(([x, y]) => `${center(x)},${center(y)}`).join(' ');
-      const [hx, hy] = headOf(a);
-      const g = svgEl('g', { class: 'arrow', tabindex: 0, role: 'button', 'aria-label': `Seta de ${a.cells.length} casas apontando para ${DIR_NAMES[a.dir]}` });
-      const line = svgEl('polyline', { class: 'line', points: pts });
-      const head = svgEl('polygon', { class: 'head', points: HEAD_POINTS, transform: `translate(${center(hx)} ${center(hy)}) rotate(${ROT[a.dir]})` });
-      const hit = svgEl('polyline', { class: 'hit', points: pts });
-      g.append(line, head, hit);
-      g.addEventListener('click', () => tap(a));
-      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(a); } });
-      boardEl.appendChild(g);
-      arrowEls.set(a, { g, line, head });
+  function render() {
+    const { st } = ui;
+    const { lv, size } = st;
+    boardEl.setAttribute('viewBox', `${-PAD} ${-PAD} ${size * CELL + 2 * PAD} ${size * CELL + 2 * PAD}`);
+    boardEl.innerHTML = '';
+    ui.els.clear(); ui.specials.clear(); ui.sides.clear(); ui.fog = [];
+
+    const span = size * CELL;
+    for (const side of lv.closed) {
+      const t = 9, o = -PAD + 3;
+      const r = { up: [0, o, span, t], down: [0, span + PAD - 3 - t, span, t], left: [o, 0, t, span], right: [span + PAD - 3 - t, 0, t, span] }[side];
+      const bar = svgEl('rect', { class: 'closed-side', x: r[0], y: r[1], width: r[2], height: r[3], rx: 4 });
+      boardEl.appendChild(bar);
+      ui.sides.set(side, bar);
+    }
+
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const sp = lv.special[y][x];
+      let el;
+      if (!sp) el = svgEl('circle', { class: 'dot', cx: center(x), cy: center(y), r: 5 });
+      else if (sp.type === 'wall') el = svgEl('rect', { class: 'wall', x: x * CELL + 8, y: y * CELL + 8, width: CELL - 16, height: CELL - 16, rx: 14 });
+      else if (sp.type === 'hole') el = svgEl('circle', { class: 'hole', cx: center(x), cy: center(y), r: 30 });
+      else {
+        const color = sp.color ? 'var(--portal-b)' : 'var(--portal-a)';
+        el = svgEl('g', { style: `color: ${color}` });
+        el.append(
+          svgEl('circle', { class: 'portal', cx: center(x), cy: center(y), r: 32, stroke: 'currentColor' }),
+          svgEl('circle', { class: 'portal-core', cx: center(x), cy: center(y), r: 16, fill: 'currentColor' }),
+        );
+      }
+      boardEl.appendChild(el);
+      if (sp) ui.specials.set(y * size + x, el);
+    }
+
+    for (const a of st.arrows) buildArrow(a);
+
+    if (lv.fog) {
+      const fogLayer = svgEl('g');
+      for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+        const r = svgEl('rect', { class: 'fog-cell', x: x * CELL - 1, y: y * CELL - 1, width: CELL + 2, height: CELL + 2 });
+        r.addEventListener('click', () => toast('A neblina esconde essa parte. Tire setas perto dela para enxergar.'));
+        fogLayer.appendChild(r);
+        ui.fog.push(r);
+      }
+      boardEl.appendChild(fogLayer);
+    }
+    refresh();
+  }
+
+  function head(x, y, dir) {
+    const g = svgEl('g', { transform: `translate(${center(x)} ${center(y)})` });
+    const rot = svgEl('g', { class: 'rot' });
+    rot.style.transform = `rotate(${DIRS[dir].rot}deg)`;
+    rot.appendChild(svgEl('polygon', { class: 'head', points: HEAD_POINTS }));
+    g.appendChild(rot);
+    return { g, rot };
+  }
+
+  function badge(x, y, kind) {
+    const g = svgEl('g', { class: `badge ${kind}`, transform: `translate(${center(x)} ${center(y)})` });
+    g.appendChild(svgEl('circle', { class: 'badge-bg', r: 27 }));
+    return g;
+  }
+
+  function buildArrow(a) {
+    const pts = a.cells.map(([x, y]) => `${center(x)},${center(y)}`).join(' ');
+    const [hx, hy] = a.cells[a.cells.length - 1];
+    const [tx, ty] = a.cells[0];
+    const classes = ['arrow'];
+    if (a.ghost) classes.push('ghost');
+    if (a.group === 0) classes.push('group-a');
+    if (a.group === 1) classes.push('group-b');
+    const g = svgEl('g', { class: classes.join(' '), tabindex: 0, role: 'button' });
+    const els = { g, a };
+
+    if (a.cells.length > 1) {
+      els.line = svgEl('polyline', { class: 'line', points: pts });
+      g.appendChild(els.line);
+    }
+    const h = head(hx, hy, a.dir);
+    els.head = h.g; els.rot = h.rot;
+    if (a.spinner) {
+      h.g.insertBefore(svgEl('circle', { class: 'ring', r: 36 }), h.rot);
+      h.rot.firstChild.setAttribute('transform', 'scale(.8)');
+    }
+    g.appendChild(h.g);
+    if (a.double) {
+      const alt = orientationOf(a, 1);
+      const t = head(tx, ty, alt.dir);
+      els.altHead = t.g;
+      g.appendChild(t.g);
+    }
+    if (a.hidden) {
+      els.dots = [a.cells[0], a.cells[a.cells.length - 1]].map(([x, y]) => svgEl('circle', { class: 'end-dot', cx: center(x), cy: center(y), r: 13 }));
+      g.append(...els.dots);
+    }
+
+    // Selo no meio da seta: número, contador, bomba, cadeado, chave ou gelo.
+    const [mx, my] = a.cells[Math.floor((a.cells.length - 1) / 2)];
+    if (a.number != null || a.counter || a.bomb) {
+      const b = badge(mx, my, a.bomb ? 'bomb' : a.counter ? 'counter' : '');
+      els.badgeText = svgEl('text', { class: 'badge-text' });
+      b.appendChild(els.badgeText);
+      els.badge = b;
+    } else if (a.lock != null || a.key != null) {
+      const b = badge(mx, my, '');
+      b.style.color = `var(--lock-${(a.lock ?? a.key) + 1})`;
+      if (a.lock != null) {
+        b.append(
+          svgEl('path', { class: 'icon-stroke', d: 'M -8 -2 V -8 a 8 8 0 0 1 16 0 V -2' }),
+          svgEl('rect', { class: 'icon-fill', x: -13, y: -3, width: 26, height: 18, rx: 4 }),
+        );
+      } else {
+        b.append(
+          svgEl('circle', { class: 'icon-stroke', cx: -8, cy: 0, r: 7 }),
+          svgEl('path', { class: 'icon-stroke', d: 'M -1 0 H 15 M 9 0 V 7 M 15 0 V 6' }),
+        );
+      }
+      els.badge = b;
+    } else if (a.frozen) {
+      const b = badge(mx, my, '');
+      b.style.color = 'var(--ice)';
+      b.appendChild(svgEl('path', { class: 'icon-stroke', d: 'M 0 -15 V 15 M -13 -7.5 L 13 7.5 M -13 7.5 L 13 -7.5' }));
+      els.badge = b;
+    }
+    if (els.badge) g.appendChild(els.badge);
+
+    if (a.cells.length > 1) g.appendChild(svgEl('polyline', { class: 'hit', points: pts }));
+    else g.appendChild(svgEl('circle', { class: 'hit-dot', cx: center(hx), cy: center(hy), r: 48 }));
+
+    g.addEventListener('click', e => onTap(a, pickEnd(a, e)));
+    g.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap(a, e.shiftKey ? 1 : 0); }
+    });
+    boardEl.appendChild(g);
+    ui.els.set(a, els);
+  }
+
+  // Na seta de duas pontas, sai pela ponta mais perto do toque.
+  function pickEnd(a, e) {
+    if (!a.double) return 0;
+    const m = boardEl.getScreenCTM();
+    if (!m) return 0;
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    const [hx, hy] = a.cells[a.cells.length - 1];
+    const [tx, ty] = a.cells[0];
+    const dh = Math.hypot(p.x - center(hx), p.y - center(hy));
+    const dt = Math.hypot(p.x - center(tx), p.y - center(ty));
+    return dt < dh ? 1 : 0;
+  }
+
+  // Atualiza o visual de todas as setas depois de cada jogada.
+  function refresh() {
+    const { st } = ui;
+    for (const [a, els] of ui.els) {
+      if (!st.alive.has(a)) continue;
+      const { g } = els;
+      if (a.ghost) g.classList.toggle('faded', !a.solid);
+      if (a.spinner) els.rot.style.transform = `rotate(${a.startRot + a.turns * 90}deg)`;
+      if (a.hidden) {
+        els.head.style.display = a.shown ? '' : 'none';
+        els.dots.forEach(d => { d.style.display = a.shown ? 'none' : ''; });
+      }
+      if (els.badgeText) {
+        if (a.bomb) {
+          els.badgeText.textContent = a.bombLeft;
+          els.badge.classList.toggle('urgent', a.bombLeft <= 2);
+        } else if (a.counter) {
+          els.badgeText.textContent = `×${a.counterLeft}`;
+        } else {
+          els.badgeText.textContent = a.number;
+        }
+      }
+      if (a.lock != null) {
+        const open = ![...st.alive].some(b => b.key === a.lock);
+        els.badge.style.display = open ? 'none' : '';
+      }
+      if (a.frozen) {
+        const icy = neighborsOf(st, a).size > 0;
+        g.classList.toggle('ice', icy);
+        els.badge.style.display = icy ? '' : 'none';
+      }
+      const name = a.hidden && !a.shown ? 'escondida' : `apontando para ${DIR_NAMES[a.dir]}`;
+      g.setAttribute('aria-label', `Seta de ${a.cells.length} ${a.cells.length > 1 ? 'casas' : 'casa'} ${name}`);
+    }
+    if (st.lv.fog) {
+      ui.fog.forEach((r, i) => r.classList.toggle('clear', st.revealed.has(i)));
     }
     updateHud();
   }
 
   function updateHud() {
-    $('level').textContent = state.level;
-    $('remaining').textContent = state.remaining;
-    $('best').textContent = Math.max(loadBest(), state.level);
+    const { st } = ui;
+    $('level').textContent = ui.level;
+    $('remaining').textContent = st.alive.size;
+    $('best').textContent = Math.max(loadBest(), ui.level);
     $('lives').innerHTML = Array.from({ length: MAX_LIVES }, (_, i) =>
-      `<span class="${i < state.lives ? '' : 'lost'}">♥</span>`).join('');
+      `<span class="${i < st.lives ? '' : 'lost'}">♥</span>`).join('');
+    const limit = st.lv.limit;
+    $('taps-box').hidden = !limit;
+    if (limit) {
+      const left = Math.max(0, limit - st.taps);
+      $('taps').textContent = left;
+      $('taps').classList.toggle('taps-low', left <= 3);
+    }
     const hb = $('hint-btn');
-    hb.textContent = `Dica (${state.hints})`;
-    hb.disabled = state.hints <= 0 || state.over;
+    hb.textContent = `Dica (${ui.hints})`;
+    hb.disabled = ui.hints <= 0 || st.won || !!st.lost;
+  }
+
+  function renderLegend() {
+    const mechs = ui.st.lv.plan.mechs;
+    const el = $('legend');
+    el.innerHTML = '';
+    if (!mechs.length) return;
+    const title = document.createElement('div');
+    title.className = 'legend-title';
+    title.textContent = 'Nesta fase';
+    el.appendChild(title);
+    for (const id of mechs) {
+      const m = MECH_BY_ID[id];
+      const box = document.createElement('div');
+      box.className = 'rule';
+      const name = document.createElement('strong');
+      name.textContent = m.name;
+      box.append(name, document.createTextNode(m.desc));
+      el.appendChild(box);
+    }
   }
 
   function restartAnim(el, cls) {
@@ -484,79 +1147,149 @@
     el.classList.add(cls);
   }
 
-  function tap(a) {
-    if (state.over || !arrowEls.has(a)) return;
-    const els = arrowEls.get(a);
-    const blocker = blockerOf(state.grid, a);
+  let toastTimer = null;
+  function toast(msg) {
+    $('toast').textContent = msg;
+    clearTimeout(toastTimer);
+    if (msg) toastTimer = setTimeout(() => { $('toast').textContent = ''; }, 3200);
+  }
 
-    if (blocker) {
-      state.lives--;
-      restartAnim(els.g, 'shake');
-      restartAnim(arrowEls.get(blocker).g, 'blocker');
-      if (navigator.vibrate) navigator.vibrate(80);
-      updateHud();
-      if (state.lives <= 0) {
-        state.over = true;
-        updateHud();
-        setTimeout(() => showOverlay('Sem vidas!', `Você ficou sem vidas na fase ${state.level}.`, 'Tentar de novo', () => startLevel(state.level)), 450);
-      }
-      return;
-    }
-
-    for (const [x, y] of a.cells) state.grid[y][x] = null;
-    arrowEls.delete(a);
-    state.remaining--;
-    document.querySelectorAll('.arrow.hint').forEach(el => el.classList.remove('hint'));
-    flyAway(a, els);
-    updateHud();
-
-    if (state.remaining === 0) {
-      state.over = true;
-      saveNum('arrows-best', Math.max(loadBest(), state.level + 1));
-      saveNum('arrows-level', state.level + 1);
-      updateHud();
-      setTimeout(() => showOverlay('Fase concluída!', `Você limpou a fase ${state.level}.`, 'Próxima fase', () => startLevel(state.level + 1)), 650);
+  function reasonText(reason) {
+    switch (reason.type) {
+      case 'arrow': return 'Tem uma seta no caminho.';
+      case 'wall': return 'Tem uma parede no caminho.';
+      case 'edge': return 'Esse lado do tabuleiro está fechado.';
+      case 'loop': return 'Os portais fazem essa seta andar em círculos.';
+      case 'lock': return 'Trancada: tire primeiro a seta com a chave da mesma cor.';
+      case 'frozen': return 'Congelada: tire primeiro as setas encostadas nela.';
+      case 'order': return `Fora de ordem: tire a seta ${reason.arrow.number} antes.`;
+      case 'group': return 'As setas laranja precisam sair antes das verdes.';
+      case 'ghost': return 'A seta fantasma está apagada. Espere ela aparecer.';
+      default: return '';
     }
   }
 
-  // A seta desliza pelo próprio traçado: o corpo segue a ponta até sair do tabuleiro.
-  function flyAway(a, { g, line, head }) {
-    g.classList.add('flying');
-    if (reduceMotion) { g.remove(); return; }
-    const { dx, dy } = DIRS[a.dir];
-    const [hx, hy] = headOf(a);
-    const bodyLen = (a.cells.length - 1) * CELL;
-    const travel = bodyLen + (state.size + 1) * CELL;
-    const pts = a.cells.map(([x, y]) => `${center(x)},${center(y)}`);
-    pts.push(`${center(hx) + dx * travel},${center(hy) + dy * travel}`);
-    line.setAttribute('points', pts.join(' '));
-    line.setAttribute('stroke-dasharray', `${bodyLen} ${travel * 2}`);
+  function flashReason(reason) {
+    if (reason.arrow && ui.els.has(reason.arrow)) restartAnim(ui.els.get(reason.arrow).g, 'blocker');
+    if (reason.type === 'wall') {
+      const el = ui.specials.get(reason.at[1] * ui.st.size + reason.at[0]);
+      if (el) restartAnim(el, 'flash');
+    }
+    if (reason.type === 'edge' && ui.sides.has(reason.side)) restartAnim(ui.sides.get(reason.side), 'flash');
+  }
 
-    const duration = Math.min(300 + a.cells.length * 40, 650);
+  function onTap(a, end) {
+    const { st } = ui;
+    const els = ui.els.get(a);
+    if (!els) return;
+    const res = tap(st, a, end);
+    if (res.ignored) {
+      if (res.reason) toast(reasonText(res.reason));
+      return;
+    }
+    document.querySelectorAll('.arrow.hint').forEach(el => el.classList.remove('hint'));
+
+    if (!res.ok) {
+      restartAnim(els.g, 'shake');
+      flashReason(res.reason);
+      toast(reasonText(res.reason));
+      if (navigator.vibrate) navigator.vibrate(80);
+    } else if (res.removed) {
+      toast('');
+      ui.els.delete(a);
+      flyAway(a, els, res);
+    } else {
+      const { dx, dy } = DIRS[a.dir];
+      els.g.style.setProperty('--nx', `${dx * 22}px`);
+      els.g.style.setProperty('--ny', `${dy * 22}px`);
+      restartAnim(els.g, 'nudge');
+      toast('');
+    }
+    refresh();
+    finishCheck(res);
+  }
+
+  function finishCheck(res) {
+    const { st } = ui;
+    const level = ui.level;
+    if (st.won) {
+      saveNum('arrows-best', Math.max(loadBest(), level + 1));
+      saveNum('arrows-level', level + 1);
+      updateHud();
+      setTimeout(() => showOverlay('', 'Fase concluída!', `Você limpou a fase ${level}.`, 'Próxima fase', () => startLevel(level + 1)), 650);
+      return;
+    }
+    if (!st.lost) return;
+    if (res.exploded && ui.els.has(res.exploded)) restartAnim(ui.els.get(res.exploded).g, 'shake');
+    const texts = {
+      lives: ['Sem vidas!', `Você ficou sem vidas na fase ${level}.`],
+      bomb: ['A bomba explodiu!', 'Uma seta com bomba chegou a zero antes de sair.'],
+      limit: ['Acabaram os toques!', 'Você usou todos os toques desta fase.'],
+      stuck: ['Sem saída!', 'Nenhuma seta consegue sair agora. Tente outra ordem.'],
+    }[st.lost];
+    setTimeout(() => showOverlay('', texts[0], texts[1], 'Tentar de novo', () => startLevel(level)), 600);
+  }
+
+  // A seta desliza pelo próprio traçado: o corpo segue a ponta até sair do tabuleiro
+  // ou até entrar num portal.
+  function flyAway(a, els, res) {
+    const { g, line } = els;
+    g.classList.add('flying');
+    if (res.route.portal) {
+      const p = res.route.portal;
+      [p.from, p.to].forEach(([x, y]) => {
+        const el = ui.specials.get(y * ui.st.size + x);
+        if (el) restartAnim(el, 'flash');
+      });
+    }
+    if (reduceMotion) { g.remove(); return; }
+
+    const o = res.orientation;
+    const movingHead = o.cells === a.cells ? els.head : els.altHead;
+    if (els.altHead) (movingHead === els.head ? els.altHead : els.head).style.display = 'none';
+    const { dx, dy } = DIRS[o.dir];
+    const [hx, hy] = o.cells[o.cells.length - 1];
+    const bodyLen = (o.cells.length - 1) * CELL;
+    const portal = res.route.portal;
+    const reach = portal
+      ? Math.abs(portal.from[0] - hx) * CELL + Math.abs(portal.from[1] - hy) * CELL
+      : (ui.st.size + 1) * CELL;
+    const travel = bodyLen + reach;
+    if (line) {
+      const pts = o.cells.map(([x, y]) => `${center(x)},${center(y)}`);
+      pts.push(`${center(hx) + dx * reach},${center(hy) + dy * reach}`);
+      line.setAttribute('points', pts.join(' '));
+      line.style.strokeDasharray = `${bodyLen} ${travel * 3}`;
+    }
+    const duration = Math.min(300 + o.cells.length * 40, 650);
     const t0 = performance.now();
     const step = now => {
       const t = Math.min((now - t0) / duration, 1);
       const s = travel * t * t; // acelera ao sair
-      line.setAttribute('stroke-dashoffset', -s);
-      head.setAttribute('transform', `translate(${center(hx) + dx * s} ${center(hy) + dy * s}) rotate(${ROT[a.dir]})`);
+      if (line) line.style.strokeDashoffset = -s;
+      const hs = Math.min(s, reach);
+      movingHead.setAttribute('transform', `translate(${center(hx) + dx * hs} ${center(hy) + dy * hs})`);
+      if (portal && s >= reach) movingHead.style.display = 'none';
       if (t < 1) requestAnimationFrame(step); else g.remove();
     };
     requestAnimationFrame(step);
   }
 
+  // Dica: a próxima seta da solução que pode sair agora (ou qualquer uma que possa).
   function useHint() {
-    if (state.hints <= 0 || state.over) return;
-    for (const [a, els] of arrowEls) {
-      if (!blockerOf(state.grid, a)) {
-        state.hints--;
-        els.g.classList.add('hint');
-        updateHud();
-        return;
-      }
-    }
+    const { st } = ui;
+    if (ui.hints <= 0 || st.won || st.lost) return;
+    const alive = [...st.alive].sort((a, b) => a.index - b.index);
+    const a = alive.find(b => canMove(st, b));
+    if (!a) return;
+    ui.hints--;
+    ui.els.get(a).g.classList.add('hint');
+    updateHud();
   }
 
-  function showOverlay(title, text, label, onClick) {
+  function showOverlay(eyebrow, title, text, label, onClick) {
+    $('overlay-eyebrow').textContent = eyebrow;
+    $('overlay-eyebrow').hidden = !eyebrow;
     $('overlay-title').textContent = title;
     $('overlay-text').textContent = text;
     const b = $('overlay-btn');
@@ -567,10 +1300,10 @@
   function hideOverlay() { $('overlay').classList.remove('show'); }
 
   $('hint-btn').addEventListener('click', useHint);
-  $('restart-btn').addEventListener('click', () => startLevel(state.level));
+  $('restart-btn').addEventListener('click', () => startLevel(ui.level));
 
   // Exposto para testes.
-  window.ArrowsGame = { generate, blockerOf, levelParams, chainDepth };
+  window.ArrowsGame = { generate, createState, tap, check, canMove, levelPlan, chainDepth, MECHANICS };
 
   startLevel(loadNum('arrows-level'));
 })();
