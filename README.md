@@ -35,7 +35,7 @@ A cada fase:
 ## Empecilhos
 
 Cada empecilho aparece primeiro sozinho, numa fase de apresentação que explica a regra. Depois ele volta
-misturado com os outros, com no máximo 2 por fase (na maioria das vezes só 1). Na primeira vez que um
+misturado com os outros, com no máximo 3 por fase (na maioria das vezes 1 ou 2). Na primeira vez que um
 empecilho aparece, uma tela explica a regra. A lista de regras da fase fica embaixo do tabuleiro.
 
 | Fase | Empecilho | Regra |

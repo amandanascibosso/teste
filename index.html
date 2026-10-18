@@ -508,8 +508,9 @@
       maxLen = Math.min(maxLen, 7);
     } else {
       const known = MECHANICS.filter(m => m.level < level).map(m => m.id);
-      // no máximo 2 empecilhos por fase, e na maioria das vezes só 1
-      const k = Math.min(known.length, rng() < 0.6 ? 1 : 2);
+      // no máximo 3 empecilhos por fase: 1 em 45% das fases, 2 em 35% e 3 em 20%
+      const roll = rng();
+      const k = Math.min(known.length, roll < 0.45 ? 1 : roll < 0.8 ? 2 : 3);
       mechs = shuffle([...known], rng).slice(0, k);
       // rastro e interruptor são os que mais fazem pensar na ordem: aparecem com frequência
       const thinking = known.filter(m => m === 'trail' || m === 'door');
