@@ -404,19 +404,19 @@
     const { dx, dy } = DIRS[dir];
     const cells = [];
     const seen = new Set();
-    let portal = null;
+    const jumps = [];
     let cx = x + dx, cy = y + dy;
     for (;;) {
       if (cx < 0 || cy < 0 || cx >= lv.size || cy >= lv.size) {
-        return { cells, end: lv.closed.includes(dir) ? 'edge' : 'out', side: dir, portal };
+        return { cells, end: lv.closed.includes(dir) ? 'edge' : 'out', side: dir, jumps };
       }
       const sp = lv.special[cy][cx];
-      if (sp && sp.type === 'wall') return { cells, end: 'wall', at: [cx, cy], portal };
+      if (sp && sp.type === 'wall') return { cells, end: 'wall', at: [cx, cy], jumps };
       if (sp && sp.type === 'portal') {
         const key = cy * lv.size + cx;
-        if (seen.has(key)) return { cells, end: 'loop', portal };
+        if (seen.has(key)) return { cells, end: 'loop', jumps };
         seen.add(key);
-        if (!portal) portal = { from: [cx, cy], to: sp.pair };
+        jumps.push({ from: [cx, cy], to: sp.pair });
         [cx, cy] = sp.pair;
       } else if (!sp) {
         cells.push([cx, cy]);
@@ -983,7 +983,7 @@
     if (a.ghost) classes.push('ghost');
     if (a.group === 0) classes.push('group-a');
     if (a.group === 1) classes.push('group-b');
-    const g = svgEl('g', { class: classes.join(' '), tabindex: 0, role: 'button' });
+    const g = svgEl('g', { class: classes.join(' '), tabindex: 0, role: 'button', 'data-id': a.id });
     const els = { g, a };
 
     if (a.cells.length > 1) {
@@ -1230,14 +1230,14 @@
     setTimeout(() => showOverlay('', texts[0], texts[1], 'Tentar de novo', () => startLevel(level)), 600);
   }
 
-  // A seta desliza pelo próprio traçado: o corpo segue a ponta até sair do tabuleiro
-  // ou até entrar num portal.
+  // A seta desliza pelo próprio traçado: o corpo segue a ponta até sair do tabuleiro.
+  // Quando o caminho passa por um portal, o trecho que já entrou continua saindo
+  // pelo outro portal do par, na mesma direção.
   function flyAway(a, els, res) {
     const { g, line } = els;
     g.classList.add('flying');
-    if (res.route.portal) {
-      const p = res.route.portal;
-      [p.from, p.to].forEach(([x, y]) => {
+    for (const j of res.route.jumps) {
+      [j.from, j.to].forEach(([x, y]) => {
         const el = ui.specials.get(y * ui.st.size + x);
         if (el) restartAnim(el, 'flash');
       });
@@ -1250,26 +1250,59 @@
     const { dx, dy } = DIRS[o.dir];
     const [hx, hy] = o.cells[o.cells.length - 1];
     const bodyLen = (o.cells.length - 1) * CELL;
-    const portal = res.route.portal;
-    const reach = portal
-      ? Math.abs(portal.from[0] - hx) * CELL + Math.abs(portal.from[1] - hy) * CELL
-      : (ui.st.size + 1) * CELL;
-    const travel = bodyLen + reach;
+
+    // Trechos retos que a ponta percorre: até cada portal e, depois do último, até bem
+    // fora do tabuleiro (longe o bastante para o rabo também sair).
+    const segs = [];
+    let px = center(hx), py = center(hy), start = 0;
+    const addSeg = (x1, y1) => {
+      const len = Math.abs(x1 - px) + Math.abs(y1 - py);
+      segs.push({ x0: px, y0: py, len, start });
+      start += len;
+    };
+    for (const j of res.route.jumps) {
+      addSeg(center(j.from[0]), center(j.from[1]));
+      [px, py] = [center(j.to[0]), center(j.to[1])];
+    }
+    const far = (ui.st.size + 1) * CELL + bodyLen;
+    addSeg(px + dx * far, py + dy * far);
+    const travel = start;
+
+    // O primeiro trecho continua a linha do corpo; os outros ganham linhas próprias.
     if (line) {
       const pts = o.cells.map(([x, y]) => `${center(x)},${center(y)}`);
-      pts.push(`${center(hx) + dx * reach},${center(hy) + dy * reach}`);
+      pts.push(`${segs[0].x0 + dx * segs[0].len},${segs[0].y0 + dy * segs[0].len}`);
       line.setAttribute('points', pts.join(' '));
       line.style.strokeDasharray = `${bodyLen} ${travel * 3}`;
+      for (const seg of segs.slice(1)) {
+        seg.el = svgEl('polyline', {
+          class: 'line',
+          points: `${seg.x0},${seg.y0} ${seg.x0 + dx * seg.len},${seg.y0 + dy * seg.len}`,
+        });
+        seg.el.style.display = 'none';
+        g.insertBefore(seg.el, movingHead);
+      }
     }
-    const duration = Math.min(300 + o.cells.length * 40, 650);
+
+    const duration = Math.min(300 + o.cells.length * 40 + res.route.jumps.length * 200, 1000);
     const t0 = performance.now();
     const step = now => {
       const t = Math.min((now - t0) / duration, 1);
       const s = travel * t * t; // acelera ao sair
       if (line) line.style.strokeDashoffset = -s;
-      const hs = Math.min(s, reach);
-      movingHead.setAttribute('transform', `translate(${center(hx) + dx * hs} ${center(hy) + dy * hs})`);
-      if (portal && s >= reach) movingHead.style.display = 'none';
+      // o corpo ocupa o intervalo [s - bodyLen, s] ao longo dos trechos
+      for (const seg of segs) {
+        if (!seg.el) continue;
+        const from = Math.max(0, s - bodyLen - seg.start);
+        const to = Math.min(seg.len, s - seg.start);
+        if (to <= from) { seg.el.style.display = 'none'; continue; }
+        seg.el.style.display = '';
+        seg.el.style.strokeDasharray = `${to - from} ${travel * 3}`;
+        seg.el.style.strokeDashoffset = -from;
+      }
+      const seg = segs.find(sg => s <= sg.start + sg.len) || segs[segs.length - 1];
+      const u = Math.min(s - seg.start, seg.len);
+      movingHead.setAttribute('transform', `translate(${seg.x0 + dx * u} ${seg.y0 + dy * u})`);
       if (t < 1) requestAnimationFrame(step); else g.remove();
     };
     requestAnimationFrame(step);
