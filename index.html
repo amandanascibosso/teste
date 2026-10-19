@@ -131,43 +131,63 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { margin: 0; }
+  /* elementos escondidos ficam escondidos mesmo quando o estilo deles define um display */
+  [hidden] { display: none !important; }
+  /* A página não rola: tudo cabe numa tela só. Regras e opções abrem em janelas por cima. */
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
   body {
+    position: fixed;
+    inset: 0;
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-body);
     font-size: 1rem;
-    min-height: 100%;
-    padding-block: 16px;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     -webkit-tap-highlight-color: transparent;
-    /* sem zoom por pinça nem por toque duplo em nenhum lugar; arrastar para rolar continua funcionando */
-    touch-action: pan-x pan-y;
+    /* sem zoom e sem arrastar a página */
+    touch-action: none;
   }
-  h1 { grid-area: title; font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 4px 0 0; letter-spacing: .04em; }
+  h1 { grid-area: title; font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 0; letter-spacing: .04em; line-height: 1.1; }
 
-  /* Uma coluna no celular e no tablet em pé; com a tela deitada (tablet, computador, TV),
-     o tabuleiro fica à esquerda, do tamanho da altura da tela, e o resto numa coluna ao lado. */
+  /* Uma coluna no celular e no tablet em pé, com o tabuleiro ocupando o espaço que sobra;
+     com a tela deitada, o tabuleiro fica à esquerda e o resto numa coluna ao lado. */
   .layout {
     display: grid;
+    height: 100%;
     width: 100%;
     max-width: 1600px;
     margin: 0 auto;
-    gap: 12px;
+    gap: 10px;
     justify-items: center;
-    grid-template-areas: "title" "hud" "board" "toast" "controls" "access" "legend" "help";
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "title" "hud" "board" "toast" "controls";
   }
-  .layout > :not(h1):not(.board-wrap) { width: 100%; max-width: 760px; }
-  @media (orientation: landscape) and (min-width: 860px) {
+  .layout > .hud, .layout > .toast, .layout > .controls { width: 100%; max-width: 760px; }
+  .layout > .legend { display: none; }
+  .board-slot {
+    grid-area: board;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    container-type: size;
+  }
+  @media (orientation: landscape) and (min-width: 600px) {
     .layout {
-      grid-template-columns: auto minmax(280px, 400px);
-      grid-template-rows: repeat(7, auto) 1fr;
-      grid-template-areas: "board title" "board hud" "board toast" "board controls" "board access" "board legend" "board help" "board .";
-      justify-content: center;
-      align-items: start;
+      grid-template-columns: minmax(0, 1fr) minmax(240px, 420px);
+      grid-template-rows: auto auto auto auto minmax(0, 1fr);
+      grid-template-areas: "board title" "board hud" "board toast" "board controls" "board legend";
       justify-items: stretch;
-      column-gap: 32px;
+      align-items: start;
+      column-gap: 28px;
+    }
+    .layout > .legend {
+      display: grid; align-content: start; height: 100%;
+      overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain;
     }
   }
   button:focus-visible { outline: 3px solid var(--hint); outline-offset: 2px; }
@@ -188,10 +208,9 @@
   .taps-low { color: var(--danger); }
 
   .board-wrap {
-    grid-area: board;
-    /* o tabuleiro cresce até caber na tela, sem passar da largura nem da altura */
-    width: min(100%, max(300px, calc(100vh - 290px)));
-    width: min(100%, max(300px, calc(100dvh - 290px)));
+    /* o tabuleiro é o maior quadrado que cabe no espaço livre */
+    width: min(100%, 60vh);
+    width: min(100cqw, 100cqh);
     max-width: 100%;
     aspect-ratio: 1;
     background: var(--surface);
@@ -218,12 +237,6 @@
     color: var(--danger);
     font-size: .95rem;
     text-align: center;
-  }
-  @media (orientation: landscape) and (min-width: 860px) {
-    .board-wrap {
-      width: min(calc(100vh - 40px), calc(100vw - 480px));
-      width: min(calc(100dvh - 40px), calc(100vw - 480px));
-    }
   }
 
   /* ---------- Tabuleiro ---------- */
@@ -345,20 +358,42 @@
   }
   .rule strong { display: block; color: var(--arrow); }
 
-  .help { grid-area: help; color: var(--muted); font-size: .9rem; text-align: center; margin: 0; line-height: 1.45; }
-  .help kbd { font: inherit; font-weight: 700; color: var(--text); }
 
-  /* Acessibilidade */
-  .access { grid-area: access; background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); }
-  .access summary { cursor: pointer; padding: 12px 14px; font-weight: 700; color: var(--arrow); }
-  .access summary:focus-visible { outline: 3px solid var(--hint); outline-offset: 2px; border-radius: 10px; }
-  .access .options { display: grid; gap: 4px; padding: 0 14px 12px; }
-  .access label { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
-  .access input { width: 1.4em; height: 1.4em; accent-color: var(--arrow); }
-  .theme-pick { border: 0; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; column-gap: 18px; }
-  .theme-pick legend { padding: 0; margin-bottom: 2px; font-weight: 700; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+  /* Janelas por cima do jogo (Regras e Opções): texto grande, rolam por dentro se precisar. */
+  .sheet {
+    position: fixed; inset: 0; z-index: 30;
+    display: grid; place-items: center;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+  }
+  .sheet-card {
+    width: min(100%, 680px);
+    max-height: 100%;
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3);
+    padding: 20px;
+    display: grid;
+    gap: 14px;
+    font-size: 1.05rem;
+    line-height: 1.45;
+  }
+  .sheet-card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--arrow); font-size: 1.6rem; }
+  .sheet-card .btn { justify-self: center; }
+  .sheet-card .legend { grid-area: auto; }
+  .sheet-card .rule { background: var(--bg); }
+  .options { display: grid; gap: 4px; }
+  .options label { display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer; }
+  .options input { width: 1.5em; height: 1.5em; accent-color: var(--arrow); flex: none; }
+  .theme-pick { border: 0; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; column-gap: 22px; }
+  .theme-pick legend { padding: 0; margin-bottom: 2px; font-weight: 700; color: var(--muted); font-size: .8em; text-transform: uppercase; letter-spacing: .06em; }
+  .help { color: var(--muted); margin: 0; }
+  .help kbd { font: inherit; font-weight: 700; color: var(--text); }
   .crash {
-    position: fixed; inset: auto 0 0 0; z-index: 20; margin: 0;
+    position: fixed; inset: auto 0 0 0; z-index: 40; margin: 0;
     padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
     background: var(--danger); color: #ffffff; font: 600 14px/1.4 ui-monospace, monospace; white-space: pre-wrap;
   }
@@ -410,18 +445,26 @@
     .hud .label { font-size: .95rem; }
     .hud .value { font-size: 1.6rem; }
     button.btn { font-size: 1.25rem; padding: 14px 22px; }
-    .access summary { font-size: 1.2rem; }
-    .access label { font-size: 1.15rem; }
+    .sheet-card { font-size: 1.35rem; padding: 28px; gap: 18px; }
+    .sheet-card h2 { font-size: 2.2rem; }
+    .sheet-card .rule { font-size: 1.3rem; }
     .toast { font-size: 1.3rem; }
     .rule { font-size: 1.15rem; padding: 14px 16px; }
     .legend-title { font-size: .95rem; }
-    .help { font-size: 1.05rem; }
+
   }
 
   @media (orientation: landscape) and (min-width: 860px) {
     h1 { justify-self: start; }
     .controls { justify-content: flex-start; }
-    .help, .toast { text-align: left; }
+    .toast { text-align: left; }
+  }
+  /* celular deitado: pouca altura, então sem título e com botões mais compactos */
+  @media (orientation: landscape) and (max-height: 500px) {
+    h1 { display: none; }
+    .layout { grid-template-rows: auto auto auto minmax(0, 1fr); grid-template-areas: "board hud" "board toast" "board controls" "board legend"; row-gap: 8px; }
+    .controls { gap: 6px; }
+    button.btn { padding: 8px 12px; }
   }
   /* TV e telas grandes: texto maior para ler de longe */
   @media (min-width: 1500px) {
@@ -449,6 +492,7 @@
     <div><div class="label">Estrelas</div><div class="value" id="stars-total">0</div></div>
   </div>
 
+  <div class="board-slot">
   <div class="board-wrap">
     <svg class="board" id="board" role="application" tabindex="0"
       aria-label="Tabuleiro. Use as setas do teclado para mover o cursor e Enter para tocar na seta."></svg>
@@ -459,16 +503,41 @@
       <button class="btn primary" id="overlay-btn"></button>
     </div>
   </div>
+  </div>
 
   <p class="toast" id="toast" aria-live="polite"></p>
 
   <div class="controls">
     <button class="btn" id="hint-btn">Dica (2)</button>
-    <button class="btn" id="restart-btn">Reiniciar fase</button>
+    <button class="btn" id="restart-btn">Reiniciar</button>
+    <button class="btn" id="rules-btn">Regras</button>
+    <button class="btn" id="options-btn">Opções</button>
   </div>
 
-  <details class="access" id="access">
-    <summary>Acessibilidade</summary>
+  <div class="legend" id="legend"></div>
+
+  <p class="sr-only" id="sr" aria-live="polite"></p>
+</main>
+
+<div class="sheet" id="rules-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="rules-title">
+  <div class="sheet-card">
+    <h2 id="rules-title">Regras</h2>
+    <p class="help">
+      Toque numa seta para ela deslizar para fora do tabuleiro, seguindo a ponta.
+      Ela só sai se não houver nada à frente da ponta. Tocar numa seta que não pode sair custa uma vida.
+    </p>
+    <div class="legend" id="legend-sheet"></div>
+    <p class="help">
+      No teclado: <kbd>setas</kbd> movem o cursor, <kbd>Enter</kbd> toca e <kbd>D</kbd> pede dica.
+      No controle: <kbd>direcional</kbd> move, <kbd>A</kbd> toca e <kbd>Y</kbd> pede dica.
+    </p>
+    <button class="btn primary" data-close>Fechar</button>
+  </div>
+</div>
+
+<div class="sheet" id="options-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="options-title">
+  <div class="sheet-card">
+    <h2 id="options-title">Opções</h2>
     <div class="options">
       <label><input type="checkbox" id="opt-large"> Texto e selos maiores</label>
       <label><input type="checkbox" id="opt-thick"> Setas mais grossas</label>
@@ -480,18 +549,9 @@
         <label><input type="radio" name="theme" id="theme-dark" value="dark"> Escuro</label>
       </fieldset>
     </div>
-  </details>
-
-  <div class="legend" id="legend"></div>
-
-  <p class="help" id="help">
-    Toque numa seta para ela deslizar para fora do tabuleiro, seguindo a ponta.
-    Ela só sai se não houver nada à frente da ponta. Tocar numa seta que não pode sair custa uma vida.
-    No teclado: <kbd>setas</kbd> movem o cursor, <kbd>Enter</kbd> toca e <kbd>D</kbd> pede dica.
-    No controle: <kbd>direcional</kbd> move, <kbd>A</kbd> toca e <kbd>Y</kbd> pede dica.
-  </p>
-  <p class="sr-only" id="sr" aria-live="polite"></p>
-</main>
+    <button class="btn primary" data-close>Fechar</button>
+  </div>
+</div>
 <pre class="crash" id="crash" hidden></pre>
 <script>
   // Mostra na tela qualquer erro do jogo, para dar para mandar uma foto.
@@ -1561,25 +1621,46 @@
     hb.disabled = ui.hints <= 0 || st.won || !!st.lost;
   }
 
+  // Regras dos empecilhos da fase: na coluna ao lado (tela deitada) e na janela Regras.
   function renderLegend() {
     const mechs = ui.st.lv.plan.mechs;
-    const el = $('legend');
-    el.innerHTML = '';
-    if (!mechs.length) return;
-    const title = document.createElement('div');
-    title.className = 'legend-title';
-    title.textContent = 'Nesta fase';
-    el.appendChild(title);
-    for (const id of mechs) {
-      const m = MECH_BY_ID[id];
-      const box = document.createElement('div');
-      box.className = 'rule';
-      const name = document.createElement('strong');
-      name.textContent = m.name;
-      box.append(name, document.createTextNode(m.desc));
-      el.appendChild(box);
+    for (const el of [$('legend'), $('legend-sheet')]) {
+      el.innerHTML = '';
+      if (!mechs.length) continue;
+      const title = document.createElement('div');
+      title.className = 'legend-title';
+      title.textContent = 'Nesta fase';
+      el.appendChild(title);
+      for (const id of mechs) {
+        const m = MECH_BY_ID[id];
+        const box = document.createElement('div');
+        box.className = 'rule';
+        const name = document.createElement('strong');
+        name.textContent = m.name;
+        box.append(name, document.createTextNode(m.desc));
+        el.appendChild(box);
+      }
     }
   }
+
+  // Janelas de Regras e Opções
+  let sheetOpener = null;
+  const openSheet = () => document.querySelector('.sheet:not([hidden])');
+  function showSheet(id) {
+    sheetOpener = document.activeElement;
+    $(id).hidden = false;
+    $(id).querySelector('[data-close]').focus();
+  }
+  function closeSheet() {
+    const sheet = openSheet();
+    if (!sheet) return;
+    sheet.hidden = true;
+    if (sheetOpener && sheetOpener.focus) sheetOpener.focus();
+  }
+  $('rules-btn').addEventListener('click', () => showSheet('rules-sheet'));
+  $('options-btn').addEventListener('click', () => showSheet('options-sheet'));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheet));
+  document.querySelectorAll('.sheet').forEach(sh => sh.addEventListener('click', e => { if (e.target === sh) closeSheet(); }));
 
   function restartAnim(el, cls) {
     el.classList.remove(cls);
@@ -1914,6 +1995,10 @@
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     const tag = e.target.tagName;
     const inControl = tag === 'BUTTON' || tag === 'INPUT' || tag === 'SUMMARY';
+    if (openSheet()) {
+      if (e.key === 'Escape') closeSheet();
+      return;
+    }
     if (overlayOpen()) {
       if ((e.key === 'Enter' || e.key === ' ') && !inControl) { e.preventDefault(); $('overlay-btn').click(); }
       return;
@@ -1954,7 +2039,7 @@
     const act = {
       up: () => moveCursor(0, -1), down: () => moveCursor(0, 1),
       left: () => moveCursor(-1, 0), right: () => moveCursor(1, 0),
-      a: () => overlayOpen() ? $('overlay-btn').click() : pressCursor(),
+      a: () => openSheet() ? closeSheet() : overlayOpen() ? $('overlay-btn').click() : pressCursor(),
       y: () => useHint(),
       start: () => { if (overlayOpen()) $('overlay-btn').click(); },
     };

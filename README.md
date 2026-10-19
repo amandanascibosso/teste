@@ -15,8 +15,10 @@ Cada fase tem 2 dicas, que destacam uma seta que já pode sair.
 - Teclado: as setas movem um cursor pelo tabuleiro, `Enter` toca na seta e `D` pede dica.
 - Controle de videogame: direcional (ou alavanca) move o cursor, `A` toca, `Y` pede dica e `Start`
   confirma as telas de vitória e derrota.
-- Menu **Acessibilidade**: texto e selos maiores, setas mais grossas, alto contraste e tema (automático,
+- Botão **Opções**: texto e selos maiores, setas mais grossas, alto contraste e tema (automático,
   claro ou escuro). As escolhas ficam salvas no aparelho.
+- A tela não rola: tudo cabe numa tela só. As regras da fase e as instruções ficam no botão **Regras**
+  (com a tela deitada, as regras também aparecem ao lado do tabuleiro).
 - O zoom por toque duplo e por pinça fica bloqueado, para não ampliar a tela sem querer durante o jogo.
 - Leitores de tela anunciam a casa sob o cursor (por exemplo, "Seta apontando para baixo, número 2").
 
@@ -37,7 +39,7 @@ A cada fase:
 
 Cada empecilho aparece primeiro sozinho, numa fase de apresentação que explica a regra. Depois ele volta
 misturado com os outros, com no máximo 3 por fase (na maioria das vezes 1 ou 2). Na primeira vez que um
-empecilho aparece, uma tela explica a regra. A lista de regras da fase fica embaixo do tabuleiro.
+empecilho aparece, uma tela explica a regra. As regras da fase ficam no botão **Regras**.
 
 | Fase | Empecilho | Regra |
 | ---: | --- | --- |
