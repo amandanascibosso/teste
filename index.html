@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Arrows Puzzle</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <script>
@@ -142,6 +142,8 @@
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     -webkit-tap-highlight-color: transparent;
+    /* toques rápidos seguidos não dão zoom; arrastar para rolar continua funcionando */
+    touch-action: manipulation;
   }
   h1 { grid-area: title; font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 4px 0 0; letter-spacing: .04em; }
 
@@ -199,7 +201,13 @@
     overflow: hidden;
     position: relative;
   }
-  .board { width: 100%; height: 100%; display: block; overflow: visible; }
+  .board {
+    width: 100%; height: 100%; display: block; overflow: visible;
+    /* no tabuleiro: só rolar, sem zoom de pinça nem lupa de toque longo */
+    touch-action: pan-x pan-y;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+  }
   /* o cursor amarelo já mostra onde está o foco; sem isso o Safari desenha um contorno azul a cada toque */
   .board:focus, .board:focus-visible { outline: none; }
 
@@ -1981,6 +1989,11 @@
     generate, createState, tap, check, canMove, levelPlan, chainDepth, MECHANICS,
     debugTap: (id, end = 0) => onTap(ui.st.arrows[id], end),
   };
+
+  // O Safari do iPhone ignora o bloqueio de zoom da página; estes eventos bloqueiam a pinça.
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(type, e => e.preventDefault(), { passive: false });
+  }
 
   // espera a página aparecer antes de montar a primeira fase
   $('toast').textContent = 'Montando a fase...';

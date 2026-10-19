@@ -17,6 +17,7 @@ Cada fase tem 2 dicas, que destacam uma seta que já pode sair.
   confirma as telas de vitória e derrota.
 - Menu **Acessibilidade**: texto e selos maiores, setas mais grossas, alto contraste e tema (automático,
   claro ou escuro). As escolhas ficam salvas no aparelho.
+- O zoom por toque duplo e por pinça fica bloqueado, para não ampliar a tela sem querer durante o jogo.
 - Leitores de tela anunciam a casa sob o cursor (por exemplo, "Seta apontando para baixo, número 2").
 
 ## Como a dificuldade sobe
