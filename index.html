@@ -142,8 +142,8 @@
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     -webkit-tap-highlight-color: transparent;
-    /* toques rápidos seguidos não dão zoom; arrastar para rolar continua funcionando */
-    touch-action: manipulation;
+    /* sem zoom por pinça nem por toque duplo em nenhum lugar; arrastar para rolar continua funcionando */
+    touch-action: pan-x pan-y;
   }
   h1 { grid-area: title; font-family: var(--font-display); font-weight: 400; font-size: 2rem; color: var(--arrow); margin: 4px 0 0; letter-spacing: .04em; }
 
@@ -2026,6 +2026,11 @@
   for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
     document.addEventListener(type, e => e.preventDefault(), { passive: false });
   }
+  // Navegadores que ignoram o bloqueio (como o Samsung Internet com "zoom manual"):
+  // cancela qualquer movimento com dois dedos ou mais.
+  document.addEventListener('touchmove', e => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
 
   // espera a página aparecer antes de montar a primeira fase
   $('toast').textContent = 'Montando a fase...';
