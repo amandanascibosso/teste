@@ -8,6 +8,12 @@ Abra o `index.html` no navegador. As setas são linhas compridas, às vezes com 
 deslizar para fora do tabuleiro, com o corpo seguindo a ponta. Ela só sai se não houver outra seta à frente da ponta. Tocar numa seta bloqueada custa uma vida (são 3 por fase).
 Cada fase tem 2 dicas, que destacam uma seta que já pode sair.
 
+## Instalar na tela de início
+
+O jogo funciona como app: com o site aberto, use **Compartilhar → Adicionar à Tela de Início** (iPhone e
+iPad) ou **⋮ → Adicionar à tela inicial** (Android). Ele ganha o ícone do Arrows e abre em tela cheia, sem
+a barra do navegador.
+
 ## Telas, controle e acessibilidade
 
 - O tabuleiro cresce até ocupar a tela: no celular e no tablet em pé fica em uma coluna; com a tela
