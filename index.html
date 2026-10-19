@@ -238,7 +238,7 @@
   .door-bars { stroke: var(--surface); stroke-width: 6; stroke-linecap: round; display: none; }
   .door.closed .door-frame { fill: currentColor; stroke-dasharray: none; }
   .door.closed .door-bars { display: inline; }
-  .overlay .eyebrow.stars { color: var(--hint); letter-spacing: 6px; font-size: 2.4rem; line-height: 1; }
+  .overlay .eyebrow.stars { color: var(--hint); letter-spacing: .15em; font-size: max(2.4rem, min(12cqw, 6.5rem)); line-height: 1; }
   .flash { animation: flash .6s ease; }
   .fog-cell { fill: var(--fog); transition: opacity .35s ease; }
   .fog-cell.clear { opacity: 0; pointer-events: none; }
@@ -368,23 +368,55 @@
   .cursor { fill: none; stroke: var(--hint); stroke-width: 9; pointer-events: none; }
   .arrow.selected .line { stroke-width: 21; }
 
+  /* Avisos sobre o tabuleiro (novidade, vitória, derrota): o texto cresce com o tabuleiro,
+     para ficar bem grande no tablet e ainda caber no celular. */
+  .board-wrap { container-type: inline-size; }
   .overlay {
     position: absolute;
     inset: 0;
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    background: var(--surface);
     display: none;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
+    gap: max(10px, 2.2cqw);
     z-index: 5;
     text-align: center;
-    padding: 24px;
+    padding: max(20px, 5cqw);
+    overflow-y: auto;
+    /* centraliza quando cabe; quando não cabe, rola a partir do começo sem cortar o título */
+    justify-content: safe center;
   }
   .overlay.show { display: flex; }
-  .overlay h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; color: var(--arrow); text-wrap: balance; }
-  .overlay p { margin: 0 0 6px; color: var(--muted); max-width: 34ch; line-height: 1.45; }
-  .overlay .eyebrow { color: var(--hint); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin: 0; }
+  .overlay h2 {
+    margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--arrow); text-wrap: balance;
+    font-size: max(1.6rem, min(8.5cqw, 4.4rem)); line-height: 1.1;
+  }
+  .overlay p {
+    margin: 0; color: var(--text); max-width: 24em; text-wrap: pretty;
+    font-size: max(1.1rem, min(4.9cqw, 2.4rem)); line-height: 1.4;
+  }
+  .overlay .eyebrow {
+    color: var(--hint); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin: 0;
+    font-size: max(.9rem, min(3.6cqw, 1.8rem));
+  }
+  .overlay .btn {
+    font-size: max(1.1rem, min(4.6cqw, 2.2rem));
+    padding: .55em 1.5em;
+    border-radius: .5em;
+    margin-top: max(4px, 1.5cqw);
+  }
+  /* no tablet e no computador, mensagens e regras também ficam maiores */
+  @media (min-width: 700px) {
+    .hud .label { font-size: .95rem; }
+    .hud .value { font-size: 1.6rem; }
+    button.btn { font-size: 1.25rem; padding: 14px 22px; }
+    .access summary { font-size: 1.2rem; }
+    .access label { font-size: 1.15rem; }
+    .toast { font-size: 1.3rem; }
+    .rule { font-size: 1.15rem; padding: 14px 16px; }
+    .legend-title { font-size: .95rem; }
+    .help { font-size: 1.05rem; }
+  }
 
   @media (orientation: landscape) and (min-width: 860px) {
     h1 { justify-self: start; }
