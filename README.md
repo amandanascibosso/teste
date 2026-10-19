@@ -57,7 +57,7 @@ empecilho aparece, uma tela explica a regra. As regras da fase ficam no botão *
 | 13 | Interruptor e porta | A seta com interruptor abre ou fecha as portas da mesma cor quando sai. |
 | 15 | Seta teimosa | Precisa de vários toques (×2, ×3). |
 | 17 | Cadeado e chave | A seta com cadeado só sai depois da seta com a chave da mesma cor. |
-| 19 | Seta de duas pontas | Sai pela ponta mais perto do toque. |
+| 19 | Seta de duas pontas | Sai pelo lado livre; se os dois estiverem livres, pela ponta mais perto do toque. |
 | 21 | Seta congelada | Só sai quando nenhuma outra seta estiver encostada nela. |
 | 23 | Grupos de cores | As laranja saem antes das verdes. |
 | 25 | Bomba-relógio | Diminui a cada jogada; se chegar a zero, você perde. |
