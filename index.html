@@ -615,12 +615,12 @@
     { id: 'limit',   level: 27, name: 'Limite de toques',    desc: 'Você tem um número máximo de toques, e os erros também contam.' },
     { id: 'portal',  level: 29, name: 'Portal',              desc: 'A seta que entra num portal sai pelo outro da mesma cor, na mesma direção. O caminho depois dele também precisa estar livre.' },
     { id: 'hidden',  level: 31, name: 'Ponta escondida',     desc: 'Algumas setas não mostram para onde apontam. A ponta aparece quando a casa à frente dela fica vazia.' },
-    { id: 'spinner', level: 33, name: 'Seta giratória',      desc: 'Gira um quarto de volta a cada jogada. Toque quando ela estiver apontando para um caminho livre.' },
+    { id: 'spinner', level: 33, name: 'Seta giratória',      desc: 'Toque nela: se o caminho para onde ela aponta estiver livre, ela sai. Se não estiver, ela gira um quarto de volta, sem perder vida.' },
     { id: 'ghost',   level: 35, name: 'Seta fantasma',       desc: 'Aparece e some a cada jogada. Apagada, ela não bloqueia ninguém, mas também não pode ser tocada.' },
     { id: 'fog',     level: 37, name: 'Neblina',             desc: 'Você só enxerga as bordas e o que fica perto das setas que já saíram.' },
   ];
   // empecilhos em que tirar a seta na hora errada pode deixar a fase sem solução
-  const TRAP_MECHS = ['trail', 'door', 'spinner', 'ghost', 'bomb', 'limit'];
+  const TRAP_MECHS = ['trail', 'door', 'ghost', 'bomb', 'limit'];
   const MECH_BY_ID = Object.fromEntries(MECHANICS.map(m => [m.id, m]));
 
   // Gerador pseudoaleatório com semente: a mesma fase sempre gera o mesmo tabuleiro.
@@ -796,7 +796,15 @@
   }
 
   function canMove(st, a) {
-    return isSolid(a) && (!check(st, a, 0) || (a.double && !check(st, a, 1)));
+    if (!isSolid(a)) return false;
+    // a giratória pode sair se algum dos quatro lados estiver livre (é só girar até ele)
+    if (a.spinner) {
+      const dir = a.dir;
+      const ok = DIR_KEYS.some(d => { a.dir = d; return !check(st, a, 0); });
+      a.dir = dir;
+      return ok;
+    }
+    return !check(st, a, 0) || (a.double && !check(st, a, 1));
   }
 
   function hasMove(st) {
@@ -843,6 +851,13 @@
       end = 1 - end;
       reason = null;
     }
+    // seta giratória com o caminho bloqueado: gira um quarto de volta, sem perder vida
+    if (reason && a.spinner) {
+      a.dir = turn(a.dir, 1);
+      a.turns++;
+      if (st.lv.limit && st.taps >= st.lv.limit) st.lost = 'limit';
+      return { ok: true, rotated: true, removed: false };
+    }
     if (reason) {
       st.lives--;
       if (st.lives <= 0) st.lost = 'lives';
@@ -886,7 +901,6 @@
     st.moves++;
     let exploded = null;
     for (const b of st.alive) {
-      if (b.spinner) { b.dir = turn(b.dir, 1); b.turns++; }
       if (b.ghost) b.solid = !b.solid;
       if (b.bombLeft != null) {
         b.bombLeft--;
@@ -1137,7 +1151,8 @@
     const total = j;
 
     for (const a of arrows) {
-      if (a.spinner) a.dir = turn(a.dir, -a.J);
+      // a giratória começa virada para um lado qualquer; quem joga gira até achar a saída
+      if (a.spinner) a.dir = turn(a.dir, Math.floor(rng() * 4));
       if (a.ghost) a.solid0 = a.J % 2 === 0;
     }
     if (has('bomb')) {
@@ -1173,7 +1188,9 @@
     }
     if (has('double')) pick(count(3, 2)).forEach(a => { a.double = true; });
     if (has('hidden')) pick(count(4, 3)).forEach(a => { a.hidden = true; });
-    if (has('limit')) lv.limit = total + (plan.intro ? 4 : 2 + Math.floor(rng() * 2));
+    // cada giratória pode precisar de até 3 toques para girar até a saída
+    const spins = arrows.filter(a => a.spinner).length * 3;
+    if (has('limit')) lv.limit = total + spins + (plan.intro ? 4 : 2 + Math.floor(rng() * 2));
     if (has('fog')) lv.fog = true;
     return true;
   }
@@ -1183,11 +1200,13 @@
     const st = createState(lv);
     for (const d of lv.arrows) {
       const a = st.arrows[d.id];
-      for (let t = 0; t < (d.counter || 1); t++) {
+      // seta teimosa precisa de vários toques; giratória pode girar até 3 vezes antes de sair
+      for (let t = 0; st.alive.has(a) && t < (d.counter || 1) + 4; t++) {
         const r = tap(st, a, 0);
         if (!r.ok) return false;
         if (st.lost) return false;
       }
+      if (st.alive.has(a)) return false;
     }
     return st.won;
   }
@@ -1735,6 +1754,9 @@
       flashReason(res.reason);
       toast(reasonText(res.reason));
       if (navigator.vibrate) navigator.vibrate(80);
+    } else if (res.rotated) {
+      // giratória bloqueada: só gira (o desenho acompanha no refresh)
+      toast('');
     } else if (res.removed) {
       toast('');
       ui.els.delete(a);
@@ -1883,7 +1905,8 @@
   // Termina a partida seguindo a ordem da solução; diz se dá para vencer assim.
   function solvesInOrder(s) {
     for (const a of [...s.alive].sort((p, q) => p.index - q.index)) {
-      while (s.alive.has(a)) {
+      for (let t = 0; s.alive.has(a); t++) {
+        if (t > a.counterLeft + 4) return false;
         const r = tap(s, a, 0);
         if (!r.ok || s.lost) return false;
       }
@@ -1953,6 +1976,7 @@
       if (a.lock != null) extra.push('com cadeado');
       if (a.key != null) extra.push('com chave');
       if (a.frozen) extra.push('congelada');
+      if (a.spinner) extra.push('giratória');
       if (a.trail) extra.push('deixa rastro');
       if (a.switch != null) extra.push('com interruptor');
       if (a.ghost) extra.push(a.solid ? 'fantasma acesa' : 'fantasma apagada');

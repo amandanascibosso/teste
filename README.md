@@ -64,7 +64,7 @@ empecilho aparece, uma tela explica a regra. As regras da fase ficam no botão *
 | 27 | Limite de toques | Número máximo de toques, contando os erros. |
 | 29 | Portal | A seta entra num portal e continua pelo outro da mesma cor. |
 | 31 | Ponta escondida | A ponta só aparece quando a casa à frente dela fica vazia. |
-| 33 | Seta giratória | Gira um quarto de volta a cada jogada. |
+| 33 | Seta giratória | Se o caminho estiver livre, sai; se não, o toque gira um quarto de volta, sem perder vida. |
 | 35 | Seta fantasma | Aparece e some a cada jogada; apagada, não bloqueia nem pode ser tocada. |
 | 37 | Neblina | Só dá para ver as bordas e o que fica perto das setas que já saíram. |
 
